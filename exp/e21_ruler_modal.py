@@ -19,13 +19,14 @@ outvol = modal.Volume.from_name("flashkv-out", create_if_missing=True)
 @app.function(image=img, gpu="A100-40GB", timeout=3600,
               volumes={"/root/.cache/huggingface": hf, "/out": outvol})
 def run_eval(model_id: str, ctx: int, budget_fracs: list, lams: list,
-             depths: list, seeds: int, block: int, gen: int):
+             depths: list, seeds: int, block: int, gen: int,
+             bonus: str = "mean", tag: str = ""):
     import copy, json, math, os, random, re
     import numpy as np, torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, DynamicCache
     from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS
 
-    CFG = dict(mode="dense", k=32, block=block, lam=0.0)
+    CFG = dict(mode="dense", k=32, block=block, lam=0.0, bonus="mean")
     STATE, STATS = {}, {"fresh": 0, "sel": 0}
 
     def sparse_attn(module, q, k, v, attention_mask, scaling=None, dropout=0.0, **kw):
@@ -49,7 +50,13 @@ def run_eval(model_id: str, ctx: int, budget_fracs: list, lams: list,
                 res = nr; STATE[li] = res
             sc2 = blk.clone()
             if CFG["lam"] > 0:
-                sc2 = sc2 + CFG["lam"] * blk.topk(kk).values.mean() * res[:nb].float()
+                tv = blk.topk(kk).values
+                # "mean": bonus scaled by the average top-k score -- large when k
+                # is tiny, which swamps the score gaps and costs retrieval.
+                # "marginal": scaled by the CUT-OFF score instead, so the bonus
+                # is calibrated to how close the contest at the boundary is.
+                ref = tv.mean() if CFG["bonus"] == "mean" else tv.min()
+                sc2 = sc2 + CFG["lam"] * ref * res[:nb].float()
             sel = torch.zeros(nb, dtype=torch.bool, device=w.device)
             sel[sc2.topk(kk).indices] = True
             STATS["fresh"] += int((sel & ~res[:nb]).sum()); STATS["sel"] += kk
@@ -147,7 +154,7 @@ def run_eval(model_id: str, ctx: int, budget_fracs: list, lams: list,
             kk = max(1, int(round(bf * nb_tot)))
             for lam in lams:
                 mode = "dense" if lam is None else "sparse"
-                CFG.update(mode=mode, lam=(lam or 0.0), k=kk)
+                CFG.update(mode=mode, lam=(lam or 0.0), k=kk, bonus=bonus)
                 STATE.clear(); STATS.update(fresh=0, sel=0)
                 past = clone_cache(base)
                 set_impl("sdpa" if mode == "dense" else "blocksparse")
@@ -161,7 +168,7 @@ def run_eval(model_id: str, ctx: int, budget_fracs: list, lams: list,
                 txt = tok.decode(out)
                 found = sum(1 for g in golds if g in txt)
                 results.append(dict(sample=si, ctx=S, budget=bf, lam=lam, k=kk,
-                                    nb=nb_tot, task=task,
+                                    nb=nb_tot, task=task, bonus=bonus,
                                     score=found / len(golds),
                                     correct=bool(found == len(golds)),
                                     gold=",".join(golds), out=txt[:60],
@@ -171,7 +178,7 @@ def run_eval(model_id: str, ctx: int, budget_fracs: list, lams: list,
         torch.cuda.empty_cache()
         if si % 3 == 0: print(f"  sample {si+1}/{len(samples)}", flush=True)
         # persist as we go so a client disconnect never loses the run
-        with open("/out/e21_ruler.json", "w") as f:
+        with open(f"/out/e21_ruler{tag}.json", "w") as f:
             json.dump(results, f)
         outvol.commit()
     return results

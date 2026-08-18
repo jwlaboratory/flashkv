@@ -1,0 +1,98 @@
+[
+ {
+  "budget": 0.005,
+  "bonus": "mean-scaled",
+  "lam": 0.1,
+  "delta": -0.125,
+  "ci": 0.13995393979148246,
+  "n": 20
+ },
+ {
+  "budget": 0.005,
+  "bonus": "mean-scaled",
+  "lam": 0.3,
+  "delta": -0.175,
+  "ci": 0.147,
+  "n": 20
+ },
+ {
+  "budget": 0.005,
+  "bonus": "mean-scaled",
+  "lam": 1.0,
+  "delta": -0.375,
+  "ci": 0.17951029878093636,
+  "n": 20
+ },
+ {
+  "budget": 0.005,
+  "bonus": "marginal-scaled",
+  "lam": 0.1,
+  "delta": -0.0125,
+  "ci": 0.0662669044967316,
+  "n": 20
+ },
+ {
+  "budget": 0.005,
+  "bonus": "marginal-scaled",
+  "lam": 0.3,
+  "delta": -0.075,
+  "ci": 0.10723584436087344,
+  "n": 20
+ },
+ {
+  "budget": 0.005,
+  "bonus": "marginal-scaled",
+  "lam": 1.0,
+  "delta": -0.2125,
+  "ci": 0.15196653890698575,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "mean-scaled",
+  "lam": 0.1,
+  "delta": 0.0,
+  "ci": 0.0,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "mean-scaled",
+  "lam": 0.3,
+  "delta": 0.0125,
+  "ci": 0.024499999999999994,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "mean-scaled",
+  "lam": 1.0,
+  "delta": -0.025,
+  "ci": 0.06053663527589154,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "marginal-scaled",
+  "lam": 0.1,
+  "delta": 0.0125,
+  "ci": 0.024499999999999994,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "marginal-scaled",
+  "lam": 0.3,
+  "delta": 0.0,
+  "ci": 0.0,
+  "n": 20
+ },
+ {
+  "budget": 0.0156,
+  "bonus": "marginal-scaled",
+  "lam": 1.0,
+  "delta": 0.0,
+  "ci": 0.0,
+  "n": 20
+ }
+]

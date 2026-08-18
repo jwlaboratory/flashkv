@@ -38,4 +38,6 @@ we measured independently.**
 | `exp/e18_freshblocks.py` | what predicts newly-needed blocks? |
 | `exp/e19_cacheaware.py` | cache-aware selection: mass vs miss tradeoff |
 | `exp/e20_quality.py` | real forward-pass NLL of cache-aware selection |
+| `exp/e21_ruler_modal.py` | RULER retrieval eval on A100 via Modal |
+| `exp/e21_compare.py` | mean- vs marginal-scaled residency bonus |
 | `exp/e6_plots.py` | figures |

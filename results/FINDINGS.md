@@ -5,8 +5,10 @@ the surviving half is dominated by a stronger design (§7 — don't reorder the 
 mostly don't do it), and that stronger design is already published (§9 — HiSparse, SAC).
 §8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.
 §10's lookahead claim is RETRACTED in §11 (the predictor it assumed is not realizable).
-§11 finds and validates a real gap instead: cache-aware selection, which cuts the miss rate
-2.4x and bandwidth 36% at no measurable quality cost.**
+§11 finds and validates a real gap instead: cache-aware selection. §12 tests it on real GPUs
+against RULER retrieval and finds a budget threshold NLL was blind to -- free and ~1.9x fewer
+misses at k>=8 blocks/layer (DSA runs k=32), destructive below k~4, with a diagnosed cause
+and a fix.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -493,6 +495,78 @@ sparse-attention serving stack.
 
 ---
 
+## 12. RULER on real GPUs: the failure mode NLL could not see
+
+§11 flagged that NLL on continuation text is a weak proxy, and that retrieval — where one
+dropped block loses the answer — is where a residency bias should hurt most. Run on Modal
+(A100-40GB, Qwen2.5-7B-Instruct, 32k context, RULER-style: 8-distractor multi-key NIAH plus
+a multi-value task where **four separate blocks must all survive selection**). Prefill is
+dense and identical across arms, so it is done once per sample and the KV cache cloned —
+every comparison below is paired on the same sample.
+
+A first pass with an easy 4-needle NIAH hit **100% for every selector including λ=1.0** — a
+ceiling, informative but non-discriminating. The hardened task discriminates sharply.
+
+### Retrieval score vs the standard top-k selector (paired, 20 samples/cell)
+
+| budget | selector | Δ vs top-k | miss rate |
+|---|---|---|---|
+| **1.56%** (k=8 of 512 blocks) | dense (upper bound) | +15.00pp * | — |
+| | **cache-aware λ=0.3** | **+1.25pp ns** | **0.54×** |
+| | cache-aware λ=1.0 | −2.50pp ns | 0.49× |
+| **0.50%** (k=3 blocks) | dense (upper bound) | +20.00pp * | — |
+| | cache-aware λ=0.1 | −12.50pp ns | 0.67× |
+| | **cache-aware λ=0.3** | **−17.50pp \*** | 0.55× |
+| | cache-aware λ=1.0 | −37.50pp * | 0.46× |
+
+**There is a budget threshold, and NLL was blind to it.** At 1.56% — k=8 blocks per layer —
+cache-aware selection is free at every λ tested, while cutting the miss rate ~1.9×. At 0.50%
+— k=3 blocks — it **destroys retrieval**: −17.5pp at λ=0.3, statistically significant. The
+§11 NLL experiment showed no difference at λ≤0.3 because continuation perplexity simply does
+not depend on any single block surviving; retrieval does.
+
+### Diagnosis and a fix
+
+The bonus was scaled by the **mean top-k score**. When k is tiny that mean is dominated by
+the peak block, so the bonus dwarfs the score gaps near the cut-off and evicts the needle.
+Scaling by the **cut-off (k-th) score** instead calibrates the bonus to how close the contest
+at the boundary actually is. Tested as a separate arm on identical samples:
+
+| budget | λ | mean-scaled Δ | marginal-scaled Δ | mean miss | marginal miss |
+|---|---|---|---|---|---|
+| 0.50% | 0.1 | −12.50pp ns | **−1.25pp ns** | 0.67× | 0.93× |
+| 0.50% | 0.3 | −17.50pp * | **−7.50pp ns** | 0.55× | 0.82× |
+| 0.50% | 1.0 | −37.50pp * | −21.25pp * | 0.46× | 0.50× |
+| 1.56% | 0.3 | +1.25pp ns | +0.00pp ns | **0.54×** | 0.85× |
+
+Marginal scaling makes the technique safe at a 3× tighter budget — but it buys much less
+(0.82× vs 0.55× miss rate). **They are for different regimes, not substitutes.**
+
+### Practical rule
+
+Use the **mean-scaled bonus at λ≈0.3 when k ≳ 8 blocks per layer**: ~1.9× fewer misses at no
+measurable retrieval cost. DeepSeek's actual DSA config — 2048 selected tokens at 64-token
+blocks, i.e. **k=32** — sits 4× above that threshold, comfortably in the safe regime. Below
+k≈4, either fall back to marginal scaling or turn the bonus off; the miss reduction is not
+worth the retrieval risk there.
+
+### Limits
+
+- Qwen2.5-7B-Instruct, **not trained for sparse attention**, at 32k not 128k. A trained DSA
+  indexer may behave differently under a residency bonus — most likely better, since its
+  scores are trained to be decisive, but that is an assumption.
+- 20 paired cells per comparison at the time of writing (the mean-scaled run was still
+  accumulating toward 60); the significant results have CIs excluding zero, but the
+  non-significant ones are "not detected," not "shown absent."
+- One model, one context length, two task types. RULER's aggregation and variable-tracking
+  tasks were not run.
+
+**Net:** §11's mechanism survives its hardest test in the regime that matters, with a
+concrete threshold and a diagnosed failure mode outside it — which is a considerably more
+useful result than the uniform "no measurable cost" that NLL alone suggested.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
@@ -557,4 +631,6 @@ holding TPOT at the compute floor, provided RTT stays under ~100 µs.
 .venv/bin/python exp/e18_freshblocks.py     # §11 what predicts newly-needed blocks?
 .venv/bin/python exp/e19_cacheaware.py      # §11 cache-aware selection, mass/miss tradeoff
 .venv/bin/python exp/e20_quality.py --ctx 6144 --eval 256 --windows 4   # §11 real NLL
+modal deploy exp/e21_ruler_modal.py && python exp/e21_launch.py        # §12 RULER on GPU
+.venv/bin/python exp/e21_report.py ; .venv/bin/python exp/e21_compare.py
 ```
