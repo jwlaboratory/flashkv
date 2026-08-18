@@ -104,6 +104,10 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
     for i, u in enumerate(U): by_layer[u["layer"]].append(i)
     for l in by_layer: by_layer[l].sort(key=lambda i: U[i]["start"])
     starts = {l: [U[i]["start"] for i in by_layer[l]] for l in range(L)}
+    unit_of = np.full((L, nb), -1, dtype=np.int32)
+    for i, u in enumerate(U):
+        unit_of[u["layer"], u["start"]:u["start"] + u["count"]] = i
+    queued = np.zeros(len(U), bool)
 
     future = [(u["release"], i) for i, u in enumerate(U)]
     heapq.heapify(future)
@@ -117,8 +121,11 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
     def release_upto(t):
         while future and future[0][0] <= t:
             _, i = heapq.heappop(future)
-            if not U[i]["done"]:
-                heapq.heappush(ready, (U[i]["prio"], U[i]["layer"], U[i]["start"], i))
+            if U[i]["done"]: continue
+            if not background and U[i]["prio"] >= L:
+                continue          # cold: only demand or prefetch may pull it
+            heapq.heappush(ready, (U[i]["prio"], U[i]["layer"], U[i]["start"], i))
+            queued[i] = True
 
     nonlocal_msgs = [0]
 
@@ -150,14 +157,20 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
         return None
 
     n_pending = len(U)
-    pf_flag = np.zeros((L, nb), bool)     # cold blocks cleared for prefetch
     idx_done = np.zeros(L, bool)
     idx_t = np.zeros(L)
     for step in range(len(need)):
         if prefetch is not None and lookahead > 0:
             tgt = step + lookahead
             if tgt < len(prefetch):
-                pf_flag |= prefetch[tgt][:, :nb]
+                want_pf = prefetch[tgt][:, :nb] & ~arrived
+                for l in np.flatnonzero(want_pf.any(1)):
+                    for b in np.flatnonzero(want_pf[l]):
+                        i = unit_of[l, b]
+                        if i >= 0 and not U[i]["done"] and not queued[i]:
+                            queued[i] = True
+                            # ahead of the cold tier, behind a demand fetch
+                            heapq.heappush(ready, (-1, int(l), U[i]["start"], int(i)))
         for l in range(L):
             if index_bytes > 0 and not idx_done[l]:
                 link_t = max(link_t, (l + 1) * t_pf_layer) + link.time(index_bytes)
@@ -195,10 +208,6 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             while n_pending:                      # link works during compute
                 release_upto(max(link_t, dec_t))
                 i = pop_ready()
-                if i is not None and not background and U[i]["prio"] >= L:
-                    u = U[i]
-                    if not pf_flag[u["layer"], u["start"]:u["start"]+u["count"]].any():
-                        continue                  # cold and unwanted: don't push it
                 if i is None:
                     if not future: break
                     link_t = max(link_t, future[0][0]); continue

@@ -4,9 +4,9 @@
 the surviving half is dominated by a stronger design (§7 — don't reorder the bulk transfer,
 mostly don't do it), and that stronger design is already published (§9 — HiSparse, SAC).
 §8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.
-§10 tests a deeper predictive angle and finds no edge — batching a layer's misses into one
-round trip is worth 6.5x, the predictor ~0, and speculative prefetch is harmful when
-bandwidth is tight.**
+§10 finds the real predictive edge: one-step lookahead prefetch breaks the 61-layer serial
+round-trip chain and moves the latency wall from ~650us to >60ms, making paging viable
+cross-region. Perfect prediction adds only ~25% on top of the measured 0.93 predictor.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -339,70 +339,77 @@ system uses. That is a narrow contribution on top of an occupied field, not a ne
 
 ---
 
-## 10. Tested: is there an edge in predicting further ahead?  (no — and the reason generalises)
+## 10. CORRECTED: one-step lookahead prefetch is the edge, and it is a large one
 
-§9 left one gap: HiSparse's LRU and SAC's reactive fetch both need history, so neither
-prefetches ahead. The hypothesis: reactive paging discovers a miss at the moment it needs
-the block, so the round trip lands on the critical path with only ~0.4 ms of layer compute
-to hide in. Predict *h steps ahead* and you get h whole token-times (~25 ms each) instead.
-If prediction survives the horizon, the ~100 µs latency wall should move enormously.
+*An earlier version of this section reported that lookahead prefetch buys nothing. That was
+a simulator bug: `pop_ready()` removed a cold unit from the heap and the skip path then
+discarded it permanently, so every cold unit drained out before any prefetch flag was set
+and **the prefetch never transferred a single block**. Fixed (explicit block→unit lookup,
+cold units enter the queue only via demand or prefetch). The corrected result is the
+opposite of what that section claimed.*
 
-**Prediction does survive the horizon.** Recall of step t+h's needed blocks, predicted at
-step t (4 traces, 256-step generations, 2× over-fetch):
+### Why speculation matters: it breaks the serial chain
 
-| horizon | slack it buys | recall (last step) | recall (union of last 4) |
+Layer 0 needs no prediction at all — its query is just the token embedding, so with a
+resident index cache the decode worker computes layer 0's exact top-k instantly. The
+problem is that layer l+1's query depends on layer l's output, so a reactive pager walks a
+**61-long serial chain**, paying a round trip at each link. Bootstrapping layer 0 alone does
+not help. Predicting *all* layers one step ahead removes the chain entirely: every layer's
+fetch is issued a whole token-time (~25 ms) before it is needed.
+
+### It works, and one step is enough
+
+TPOT, 128k, 100GbE, prefix-cache hit (ideal 25.0 ms):
+
+| RTT | bulk | reactive (h=0) | **h=1** | h=2 | h=4 | h=16 |
+|---|---|---|---|---|---|---|
+| 20 µs | 30.8 | 25.0 | **25.0** | 25.1 | 25.3 | 25.8 |
+| 500 µs | 39.0 | 32.6 | **25.7** | 26.6 | 28.5 | 35.8 |
+| 1 ms | 47.5 | 63.1 | **26.5** | 28.1 | 31.9 | 48.1 |
+| 5 ms | 115.8 | 307.1 | **37.9** | 47.5 | 67.6 | 155.5 |
+| 20 ms | 371.8 | 1222.1 | **99.7** | 135.6 | 217.2 | 567.5 |
+
+**The latency wall moves from ~650 µs to beyond 60 ms** — at 20 ms RTT paging is still 3.7×
+better than bulk transfer. That is cross-region territory, not just cross-rack.
+
+**h=1 is the sweet spot; deeper is worse.** h=16 is 5.7× worse than h=1 at 20 ms RTT,
+because deeper horizons have lower recall, so more of the speculative fetch is junk that
+competes for bandwidth — the same "speculative traffic crowds out needed traffic" effect
+seen in §6 and §7. The lesson survives; it just bounds the depth rather than the idea.
+
+Cost: prefetch converts round trips into bytes. Over 24 steps at 2× over-fetch, h=1 moves
+3.58 GB vs 0.73 GB reactive — still well under the 9.21 GB a bulk transfer sends.
+
+### How accurate does the predictor have to be? Less than you would think
+
+TPOT vs per-block recall of the prefetch set, with h=1 (bulk shown for comparison):
+
+| per-block recall | layers still stalling | RTT 1 ms | RTT 5 ms |
 |---|---|---|---|
-| h=1 | 25 ms | 0.930 | 0.927 |
-| h=2 | 50 ms | 0.904 | 0.908 |
-| h=4 | 100 ms | 0.878 | 0.887 |
-| h=8 | 200 ms | 0.854 | 0.864 |
-| h=16 | 400 ms | 0.819 | 0.829 |
+| 0.900 | 58.9 / 61 | 28.1 | 52.0 |
+| 0.930 *(measured, 2× over-fetch)* | 55.0 / 61 | 27.0 | 41.6 |
+| 0.959 *(measured, 4×)* | 45.0 / 61 | 26.8 | 36.0 |
+| 0.990 | 16.8 / 61 | 26.3 | 31.3 |
+| **1.000 (perfect)** | 0 / 61 | **26.3** | **31.3** |
+| bulk transfer | — | 55.4 | 147.4 |
 
-Decay is remarkably slow — you can see 400 ms into the future at 82% recall.
+Perfect top-k prediction is worth ~25% over the measured 0.93 predictor at 5 ms RTT, and
+almost nothing at 1 ms. **The unlock is having *a* prediction plus one step of lookahead,
+not having a perfect one** — 0.90 recall already beats bulk by 2.8× at 5 ms RTT. Chasing
+accuracy past ~0.96 is not where the value is.
 
-**And it buys almost nothing.** TPOT, 128k, 100GbE, prefix-cache hit (ideal = 25.0 ms):
+Note the counter-intuitive column: even at recall 1.0 the naive formula says 0 layers stall,
+yet TPOT is 26.3 ms rather than 25.0 — the residue is bandwidth, not latency. Once round
+trips are pipelined away, the pager is limited by moving the bytes, which is the regime you
+want to be in.
 
-| RTT | bulk | paged h=0 (reactive) | h=1 | h=4 | h=16 |
-|---|---|---|---|---|---|
-| 20 µs | 30.8 | **25.0** | 25.2 | 25.3 | 25.4 |
-| 100 µs | 32.2 | **25.0** | 25.4 | 25.6 | 25.8 |
-| 500 µs | 39.0 | 32.6 | 32.9 | 32.2 | **32.0** |
-| 1000 µs | **47.5** | 63.1 | 62.4 | 60.7 | 60.3 |
+### Caveat
 
-**Why the hypothesis was wrong.** The round-trip cost is not set by *when* you fetch, it is
-set by how many layers have **at least one** miss. At 93% recall with 32 blocks per layer,
-P(some miss in a layer) = 1 − 0.93³² ≈ 90%. Nearly every layer stalls regardless of how
-early you started. To hide the round trip by prediction you would need per-block recall
-above ~0.9997, which is not reachable — and even the "everything seen so far" set, at 0.966
-recall and 11.8% of the cache resident, leaves 67% of layers missing something.
-
-**What actually moves the wall is batching, not prediction.** A real pager knows all of a
-layer's misses at once and asks for them in one request. Charging one round trip per layer
-instead of per missing block moved the crossover from ~100 µs to **~650 µs** (paged wins at
-600 µs, bulk wins at 700 µs) — a 6.5× extension from an implementation detail, versus ~0
-from the predictor.
-
-**Worse: speculative prefetch is actively harmful when bandwidth is tight.** TPOT, h=0 → h=4:
-
-| link | RTT 20 µs | RTT 200 µs | RTT 1000 µs |
-|---|---|---|---|
-| 25GbE | 25.9 → **32.6** | 26.5 → **42.5** | 70.4 → **86.5** |
-| 100GbE | 25.0 → 25.3 | 25.0 → 26.1 | 63.1 → 60.7 |
-| IB NDR | 25.0 → 25.0 | 25.0 → 25.0 | 61.7 → 60.4 |
-
-On a constrained link the speculative traffic steals bandwidth from the demand fetches that
-actually matter — up to 60% worse TPOT.
-
-**The recurring lesson, now seen three times.** Speculative traffic competes with needed
-traffic: the bulk background stream hurt TPOT in §7; over-fetching past the sweet spot hurt
-TTFT on fast links in §6; lookahead prefetch hurts on slow links here. **Prediction is only
-worth what it saves minus what its wrong guesses cost in bandwidth**, and on the paging path
-that difference is near zero or negative.
-
-**What survives.** Exactly one predictive edge, the cold-start one from §6: the very first
-decode token after a cache hit, where there is no history for LRU or a reactive pager to use
-(33 ms vs 57 ms TTFT). That stays the gap in HiSparse and SAC. Deeper or further-ahead
-prediction is not an edge.
+The simulator issues all 61 layers' prefetches at the start of step t. A real
+implementation learns layer l's selection only as step t reaches layer l, so early layers
+get somewhat less slack than modelled, and the effective predictor is closer to horizon 2
+than horizon 1. The h=2 row (28.1 ms at 1 ms RTT, 47.5 at 5 ms) bounds that, and the
+conclusion holds comfortably.
 
 ---
 
