@@ -1,0 +1,121 @@
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind qa_needle --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q05_qa_needle_16k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=16296
+prefill 3.7s
+  step 0 S=16296 nb=255
+  step 4 S=16300 nb=255
+  step 8 S=16304 nb=255
+  step 12 S=16308 nb=255
+  step 16 S=16312 nb=255
+  step 20 S=16316 nb=255
+  step 24 S=16320 nb=255
+  step 28 S=16324 nb=256
+  step 32 S=16328 nb=256
+wrote results/e1/q05_qa_needle_16k_b64
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind summarize --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q05_summarize_16k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=summarize tokens=16271
+prefill 3.3s
+  step 0 S=16271 nb=255
+  step 4 S=16275 nb=255
+  step 8 S=16279 nb=255
+  step 12 S=16283 nb=255
+  step 16 S=16287 nb=255
+  step 20 S=16291 nb=255
+  step 24 S=16295 nb=255
+  step 28 S=16299 nb=255
+  step 32 S=16303 nb=255
+wrote results/e1/q05_summarize_16k_b64
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind code --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q05_code_16k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=code tokens=16251
+prefill 3.3s
+  step 0 S=16251 nb=254
+  step 4 S=16255 nb=254
+  step 8 S=16259 nb=255
+  step 12 S=16263 nb=255
+  step 16 S=16267 nb=255
+  step 20 S=16271 nb=255
+  step 24 S=16275 nb=255
+  step 28 S=16279 nb=255
+  step 32 S=16283 nb=255
+wrote results/e1/q05_code_16k_b64
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind continue --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q05_continue_16k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=continue tokens=16259
+prefill 3.2s
+  step 0 S=16259 nb=255
+  step 4 S=16263 nb=255
+  step 8 S=16267 nb=255
+  step 12 S=16271 nb=255
+  step 16 S=16275 nb=255
+  step 20 S=16279 nb=255
+  step 24 S=16283 nb=255
+  step 28 S=16287 nb=255
+  step 32 S=16291 nb=255
+wrote results/e1/q05_continue_16k_b64
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind qa_needle --ctx 16384 --steps 32 --block 16 --budget 1024 --out results/e1/q05_qa_16k_b16 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=16296
+prefill 3.5s
+  step 0 S=16296 nb=1019
+  step 4 S=16300 nb=1019
+  step 8 S=16304 nb=1019
+  step 12 S=16308 nb=1020
+  step 16 S=16312 nb=1020
+  step 20 S=16316 nb=1020
+  step 24 S=16320 nb=1020
+  step 28 S=16324 nb=1021
+  step 32 S=16328 nb=1021
+wrote results/e1/q05_qa_16k_b16
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind qa_needle --ctx 16384 --steps 32 --block 128 --budget 1024 --out results/e1/q05_qa_16k_b128 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=16296
+prefill 3.5s
+  step 0 S=16296 nb=128
+  step 4 S=16300 nb=128
+  step 8 S=16304 nb=128
+  step 12 S=16308 nb=128
+  step 16 S=16312 nb=128
+  step 20 S=16316 nb=128
+  step 24 S=16320 nb=128
+  step 28 S=16324 nb=128
+  step 32 S=16328 nb=128
+wrote results/e1/q05_qa_16k_b128
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind qa_needle --ctx 4096 --steps 32 --block 64 --budget 1024 --out results/e1/q05_qa_4k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=3980
+prefill 0.2s
+  step 0 S=3980 nb=63
+  step 4 S=3984 nb=63
+  step 8 S=3988 nb=63
+  step 12 S=3992 nb=63
+  step 16 S=3996 nb=63
+  step 20 S=4000 nb=63
+  step 24 S=4004 nb=63
+  step 28 S=4008 nb=63
+  step 32 S=4012 nb=63
+wrote results/e1/q05_qa_4k_b64
+=== --model Qwen/Qwen2.5-0.5B-Instruct --kind qa_needle --ctx 32768 --steps 32 --block 64 --budget 1024 --out results/e1/q05_qa_32k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=32673
+prefill 19.6s
+  step 0 S=32673 nb=511
+  step 4 S=32677 nb=511
+  step 8 S=32681 nb=511
+  step 12 S=32685 nb=511
+  step 16 S=32689 nb=511
+  step 20 S=32693 nb=511
+  step 24 S=32697 nb=511
+  step 28 S=32701 nb=511
+  step 32 S=32705 nb=512
+wrote results/e1/q05_qa_32k_b64
+=== --model Qwen/Qwen2.5-1.5B-Instruct --kind qa_needle --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q15_qa_needle_16k_b64 ===
