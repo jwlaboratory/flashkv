@@ -52,8 +52,13 @@ def runs(mask, cap=MAX_UNIT_BLOCKS):
     return out
 
 def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
-             link, rtt_us=0.0, index_frac=0.11):
+             link, rtt_us=0.0, index_frac=0.11, demand=True):
     """need[step][layer] bool[nb]; prio[layer] bool[nb] = what P sends first.
+
+    demand=True   receiver may pull a missing block out of order, costing one
+                  RTT (push + demand-pull, what you would actually build)
+    demand=False  pure push: the receiver just waits for the stream to reach the
+                  block in the sender's chosen order
     Event-driven: `future` holds units by release time, `ready` is a priority
     heap; demand fetches are located per layer by bisect and pulled out lazily."""
     import bisect, heapq, itertools
@@ -91,10 +96,10 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             if not U[i]["done"]:
                 heapq.heappush(ready, (U[i]["prio"], U[i]["layer"], U[i]["start"], i))
 
-    def run_unit(i):
+    def run_unit(i, rtt=0.0):
         nonlocal link_t, moved
         u = U[i]
-        link_t = max(link_t, u["release"]) + link.time(u["bytes"])
+        link_t = max(link_t, u["release"]) + rtt + link.time(u["bytes"])
         arrived[u["layer"], u["start"]:u["start"] + u["count"]] = True
         u["done"] = True; moved += u["bytes"]
         return link_t
@@ -124,9 +129,17 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             while True:
                 missing = np.flatnonzero(want & ~arrived[l])
                 if not len(missing): break
-                i = find_covering(l, int(missing[0]))
+                if demand:                       # pull out of order, pay one RTT
+                    i = find_covering(l, int(missing[0]))
+                    rtt = rtt_us * 1e-6
+                else:                            # pure push: wait for the stream
+                    release_upto(max(link_t, dec_t))
+                    i = pop_ready()
+                    if i is None and future:
+                        link_t = max(link_t, future[0][0]); continue
+                    rtt = 0.0
                 if i is None: break
-                t_arr = run_unit(i); n_pending -= 1
+                t_arr = run_unit(i, rtt); n_pending -= 1
                 if t_arr > dec_t:
                     d = t_arr - dec_t; stall += d
                     if step > 0: stall_post += d

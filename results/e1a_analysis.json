@@ -194,6 +194,394 @@
   }
  },
  {
+  "trace": "q05_qa_16k_b128",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "kind": "qa_needle",
+  "ctx": 16296,
+  "L": 24,
+  "H": 14,
+  "KVH": 2,
+  "nb": 128,
+  "block": 128,
+  "res": {
+   "0.0160": {
+    "k": 2,
+    "budget_tokens": 256,
+    "frac": 0.016,
+    "per_head": {
+     "resident_frac": 0.03387451171875,
+     "mass_recall": 0.8125877222822359,
+     "step_jaccard": 0.6639169307000189,
+     "workingset_frac": 0.1103515625,
+     "pred_hit": 0.6868686868686869,
+     "sinklocal_share": 0.6030262489246865
+    },
+    "shared": {
+     "resident_frac": 0.015625,
+     "mass_recall": 0.7518448850217586,
+     "step_jaccard": 0.9407407407407407,
+     "workingset_frac": 0.020833333333333332,
+     "pred_hit": 0.9583333333333334,
+     "sinklocal_share": 0.9505208333333334
+    }
+   },
+   "0.0625": {
+    "k": 8,
+    "budget_tokens": 1024,
+    "frac": 0.0625,
+    "per_head": {
+     "resident_frac": 0.28363037109375,
+     "mass_recall": 0.9186472184956074,
+     "step_jaccard": 0.6006169335533199,
+     "workingset_frac": 0.662109375,
+     "pred_hit": 0.7208182912154031,
+     "sinklocal_share": 0.08209360314246225
+    },
+    "shared": {
+     "resident_frac": 0.0625,
+     "mass_recall": 0.8425897845687965,
+     "step_jaccard": 0.5841694108360773,
+     "workingset_frac": 0.18912760416666666,
+     "pred_hit": 0.703125,
+     "sinklocal_share": 0.3157552083333333
+    }
+   },
+   "0.1250": {
+    "k": 16,
+    "budget_tokens": 2048,
+    "frac": 0.125,
+    "per_head": {
+     "resident_frac": 0.4936726888020833,
+     "mass_recall": 0.957631504163146,
+     "step_jaccard": 0.7042045388513745,
+     "workingset_frac": 0.8375651041666666,
+     "pred_hit": 0.7877358490566038,
+     "sinklocal_share": 0.047285491121493384
+    },
+    "shared": {
+     "resident_frac": 0.125,
+     "mass_recall": 0.8803678057156503,
+     "step_jaccard": 0.5863791047619885,
+     "workingset_frac": 0.3375651041666667,
+     "pred_hit": 0.7083333333333334,
+     "sinklocal_share": 0.17024739583333334
+    }
+   },
+   "0.2500": {
+    "k": 32,
+    "budget_tokens": 4096,
+    "frac": 0.25,
+    "per_head": {
+     "resident_frac": 0.73822021484375,
+     "mass_recall": 0.9849586451115707,
+     "step_jaccard": 0.826094146695557,
+     "workingset_frac": 0.9485677083333334,
+     "pred_hit": 0.8819255222524978,
+     "sinklocal_share": 0.03152596978482964
+    },
+    "shared": {
+     "resident_frac": 0.25,
+     "mass_recall": 0.922843678543965,
+     "step_jaccard": 0.6447228483896481,
+     "workingset_frac": 0.5485026041666666,
+     "pred_hit": 0.765625,
+     "sinklocal_share": 0.08894856770833333
+    }
+   }
+  }
+ },
+ {
+  "trace": "q05_qa_16k_b16",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "kind": "qa_needle",
+  "ctx": 16296,
+  "L": 24,
+  "H": 14,
+  "KVH": 2,
+  "nb": 1021,
+  "block": 16,
+  "res": {
+   "0.0160": {
+    "k": 16,
+    "budget_tokens": 256,
+    "frac": 0.016,
+    "per_head": {
+     "resident_frac": 0.08942162504080968,
+     "mass_recall": 0.8791337667498738,
+     "step_jaccard": 0.48832193872461527,
+     "workingset_frac": 0.3150097943192948,
+     "pred_hit": 0.5684016582220175,
+     "sinklocal_share": 0.1363475386134628
+    },
+    "shared": {
+     "resident_frac": 0.015670910871694418,
+     "mass_recall": 0.8194682953568796,
+     "step_jaccard": 0.5242830108022537,
+     "workingset_frac": 0.06345902709761672,
+     "pred_hit": 0.6145833333333334,
+     "sinklocal_share": 0.3802083333333333
+    }
+   },
+   "0.0625": {
+    "k": 64,
+    "budget_tokens": 1024,
+    "frac": 0.0625,
+    "per_head": {
+     "resident_frac": 0.3057511018609207,
+     "mass_recall": 0.9455233494130274,
+     "step_jaccard": 0.6150779257049179,
+     "workingset_frac": 0.6759712699967352,
+     "pred_hit": 0.7261969532100109,
+     "sinklocal_share": 0.04883758032072288
+    },
+    "shared": {
+     "resident_frac": 0.06268364348677767,
+     "mass_recall": 0.8760439502075315,
+     "step_jaccard": 0.5256118871430577,
+     "workingset_frac": 0.2121694417238002,
+     "pred_hit": 0.6087239583333334,
+     "sinklocal_share": 0.14860026041666666
+    }
+   },
+   "0.1250": {
+    "k": 128,
+    "budget_tokens": 2048,
+    "frac": 0.125,
+    "per_head": {
+     "resident_frac": 0.5000280566438132,
+     "mass_recall": 0.9728931662005683,
+     "step_jaccard": 0.7105882897181744,
+     "workingset_frac": 0.8418625530525629,
+     "pred_hit": 0.7937182371073899,
+     "sinklocal_share": 0.030618823097824904
+    },
+    "shared": {
+     "resident_frac": 0.12536728697355534,
+     "mass_recall": 0.9099700526955227,
+     "step_jaccard": 0.5713274757956734,
+     "workingset_frac": 0.35724779627815867,
+     "pred_hit": 0.6474609375,
+     "sinklocal_share": 0.09153238932291667
+    }
+   },
+   "0.2500": {
+    "k": 255,
+    "budget_tokens": 4080,
+    "frac": 0.25,
+    "per_head": {
+     "resident_frac": 0.7352855656219393,
+     "mass_recall": 0.9909512653636435,
+     "step_jaccard": 0.8269064144650231,
+     "workingset_frac": 0.9506203068886713,
+     "pred_hit": 0.8777482620245295,
+     "sinklocal_share": 0.02080757161742071
+    },
+    "shared": {
+     "resident_frac": 0.24975514201762974,
+     "mass_recall": 0.9458775206779441,
+     "step_jaccard": 0.6383865789857216,
+     "workingset_frac": 0.5603574926542605,
+     "pred_hit": 0.7326797385620915,
+     "sinklocal_share": 0.05447303921568628
+    }
+   }
+  }
+ },
+ {
+  "trace": "q05_qa_32k_b64",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "kind": "qa_needle",
+  "ctx": 32673,
+  "L": 24,
+  "H": 14,
+  "KVH": 2,
+  "nb": 512,
+  "block": 64,
+  "res": {
+   "0.0160": {
+    "k": 8,
+    "budget_tokens": 512,
+    "frac": 0.016,
+    "per_head": {
+     "resident_frac": 0.08428446451822917,
+     "mass_recall": 0.877309772806863,
+     "step_jaccard": 0.48984149737935506,
+     "workingset_frac": 0.286865234375,
+     "pred_hit": 0.5878003696857671,
+     "sinklocal_share": 0.0939562869631602
+    },
+    "shared": {
+     "resident_frac": 0.015625,
+     "mass_recall": 0.8179057016192625,
+     "step_jaccard": 0.5777834511167844,
+     "workingset_frac": 0.054768880208333336,
+     "pred_hit": 0.6822916666666666,
+     "sinklocal_share": 0.4235026041666667
+    }
+   },
+   "0.0625": {
+    "k": 32,
+    "budget_tokens": 2048,
+    "frac": 0.0625,
+    "per_head": {
+     "resident_frac": 0.2997843424479167,
+     "mass_recall": 0.9463403611443937,
+     "step_jaccard": 0.6274066038065761,
+     "workingset_frac": 0.6381022135416666,
+     "pred_hit": 0.7529219896711062,
+     "sinklocal_share": 0.026288890112417012
+    },
+    "shared": {
+     "resident_frac": 0.0625,
+     "mass_recall": 0.8745211074128747,
+     "step_jaccard": 0.5373138029607359,
+     "workingset_frac": 0.20166015625,
+     "pred_hit": 0.6692708333333334,
+     "sinklocal_share": 0.11995442708333333
+    }
+   },
+   "0.1250": {
+    "k": 64,
+    "budget_tokens": 4096,
+    "frac": 0.125,
+    "per_head": {
+     "resident_frac": 0.4885050455729167,
+     "mass_recall": 0.9731367904072007,
+     "step_jaccard": 0.7226238594547197,
+     "workingset_frac": 0.8086751302083334,
+     "pred_hit": 0.8305799055967633,
+     "sinklocal_share": 0.01599423703761804
+    },
+    "shared": {
+     "resident_frac": 0.125,
+     "mass_recall": 0.9096615655968586,
+     "step_jaccard": 0.5816376648154823,
+     "workingset_frac": 0.34326171875,
+     "pred_hit": 0.7194010416666666,
+     "sinklocal_share": 0.06103515625
+    }
+   },
+   "0.2500": {
+    "k": 128,
+    "budget_tokens": 8192,
+    "frac": 0.25,
+    "per_head": {
+     "resident_frac": 0.7173360188802084,
+     "mass_recall": 0.9909432344138622,
+     "step_jaccard": 0.8290408578476116,
+     "workingset_frac": 0.9332682291666666,
+     "pred_hit": 0.9009259259259259,
+     "sinklocal_share": 0.010830896212791258
+    },
+    "shared": {
+     "resident_frac": 0.25,
+     "mass_recall": 0.9468809957616031,
+     "step_jaccard": 0.6552513439968559,
+     "workingset_frac": 0.5335286458333334,
+     "pred_hit": 0.7747395833333334,
+     "sinklocal_share": 0.030598958333333332
+    }
+   }
+  }
+ },
+ {
+  "trace": "q05_qa_4k_b64",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "kind": "qa_needle",
+  "ctx": 3980,
+  "L": 24,
+  "H": 14,
+  "KVH": 2,
+  "nb": 63,
+  "block": 64,
+  "res": {
+   "0.0160": {
+    "k": 1,
+    "budget_tokens": 64,
+    "frac": 0.016,
+    "per_head": {
+     "resident_frac": 0.03947585978835979,
+     "mass_recall": 0.7791445617331192,
+     "step_jaccard": 0.829345238095238,
+     "workingset_frac": 0.06746031746031746,
+     "pred_hit": 0.8928571428571429,
+     "sinklocal_share": 0.8682725694444445
+    },
+    "shared": {
+     "resident_frac": 0.015873015873015872,
+     "mass_recall": 0.5000046034886813,
+     "step_jaccard": 0.8527777777777777,
+     "workingset_frac": 0.02513227513227513,
+     "pred_hit": 0.7083333333333334,
+     "sinklocal_share": 0.9791666666666666
+    }
+   },
+   "0.0625": {
+    "k": 4,
+    "budget_tokens": 256,
+    "frac": 0.0625,
+    "per_head": {
+     "resident_frac": 0.1982473544973545,
+     "mass_recall": 0.8897783363548418,
+     "step_jaccard": 0.5653687368077521,
+     "workingset_frac": 0.5496031746031746,
+     "pred_hit": 0.6710097719869706,
+     "sinklocal_share": 0.3361372899975841
+    },
+    "shared": {
+     "resident_frac": 0.06349206349206349,
+     "mass_recall": 0.8336517824791372,
+     "step_jaccard": 0.8448148148148148,
+     "workingset_frac": 0.1130952380952381,
+     "pred_hit": 0.8125,
+     "sinklocal_share": 0.7734375
+    }
+   },
+   "0.1250": {
+    "k": 8,
+    "budget_tokens": 512,
+    "frac": 0.125,
+    "per_head": {
+     "resident_frac": 0.4420469576719577,
+     "mass_recall": 0.9429629822261631,
+     "step_jaccard": 0.6690551197038653,
+     "workingset_frac": 0.8068783068783069,
+     "pred_hit": 0.7530120481927711,
+     "sinklocal_share": 0.173236660199004
+    },
+    "shared": {
+     "resident_frac": 0.12698412698412698,
+     "mass_recall": 0.8715460192567358,
+     "step_jaccard": 0.6889182422515755,
+     "workingset_frac": 0.2976190476190476,
+     "pred_hit": 0.734375,
+     "sinklocal_share": 0.435546875
+    }
+   },
+   "0.2500": {
+    "k": 16,
+    "budget_tokens": 1024,
+    "frac": 0.25,
+    "per_head": {
+     "resident_frac": 0.7177166005291005,
+     "mass_recall": 0.9784435698141655,
+     "step_jaccard": 0.8076549135154936,
+     "workingset_frac": 0.9556878306878307,
+     "pred_hit": 0.8776844070961718,
+     "sinklocal_share": 0.10920746134995445
+    },
+    "shared": {
+     "resident_frac": 0.25396825396825395,
+     "mass_recall": 0.9136400177764396,
+     "step_jaccard": 0.6645669374638729,
+     "workingset_frac": 0.5482804232804233,
+     "pred_hit": 0.734375,
+     "sinklocal_share": 0.24462890625
+    }
+   }
+  }
+ },
+ {
   "trace": "q05_qa_needle_16k_b64",
   "model": "Qwen/Qwen2.5-0.5B-Instruct",
   "kind": "qa_needle",
@@ -383,6 +771,103 @@
      "workingset_frac": 0.5480392156862746,
      "pred_hit": 0.77734375,
      "sinklocal_share": 0.07198079427083333
+    }
+   }
+  }
+ },
+ {
+  "trace": "q15_qa_needle_16k_b64",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "kind": "qa_needle",
+  "ctx": 16296,
+  "L": 28,
+  "H": 12,
+  "KVH": 2,
+  "nb": 256,
+  "block": 64,
+  "res": {
+   "0.0160": {
+    "k": 4,
+    "budget_tokens": 256,
+    "frac": 0.016,
+    "per_head": {
+     "resident_frac": 0.05784388950892857,
+     "mass_recall": 0.8483610132576099,
+     "step_jaccard": 0.4776299174855778,
+     "workingset_frac": 0.21693638392857142,
+     "pred_hit": 0.622107969151671,
+     "sinklocal_share": 0.24280865315278669
+    },
+    "shared": {
+     "resident_frac": 0.015625,
+     "mass_recall": 0.8105031096908663,
+     "step_jaccard": 0.6803628117913831,
+     "workingset_frac": 0.042689732142857144,
+     "pred_hit": 0.8214285714285714,
+     "sinklocal_share": 0.6127232142857143
+    }
+   },
+   "0.0625": {
+    "k": 16,
+    "budget_tokens": 1024,
+    "frac": 0.0625,
+    "per_head": {
+     "resident_frac": 0.26596505301339285,
+     "mass_recall": 0.9242333926792655,
+     "step_jaccard": 0.5915427421780819,
+     "workingset_frac": 0.6368582589285714,
+     "pred_hit": 0.6838006230529595,
+     "sinklocal_share": 0.0586736680723255
+    },
+    "shared": {
+     "resident_frac": 0.0625,
+     "mass_recall": 0.862309100771589,
+     "step_jaccard": 0.551434019146812,
+     "workingset_frac": 0.20842633928571427,
+     "pred_hit": 0.6428571428571429,
+     "sinklocal_share": 0.197265625
+    }
+   },
+   "0.1250": {
+    "k": 32,
+    "budget_tokens": 2048,
+    "frac": 0.125,
+    "per_head": {
+     "resident_frac": 0.45736258370535715,
+     "mass_recall": 0.9582117116078734,
+     "step_jaccard": 0.682944634898543,
+     "workingset_frac": 0.8264508928571429,
+     "pred_hit": 0.7893783946891973,
+     "sinklocal_share": 0.03430584986473884
+    },
+    "shared": {
+     "resident_frac": 0.125,
+     "mass_recall": 0.8932869097750101,
+     "step_jaccard": 0.571929936410339,
+     "workingset_frac": 0.3646763392857143,
+     "pred_hit": 0.6450892857142857,
+     "sinklocal_share": 0.107421875
+    }
+   },
+   "0.2500": {
+    "k": 64,
+    "budget_tokens": 4096,
+    "frac": 0.25,
+    "per_head": {
+     "resident_frac": 0.7001865931919643,
+     "mass_recall": 0.9843889162210482,
+     "step_jaccard": 0.8050438981860664,
+     "workingset_frac": 0.9541015625,
+     "pred_hit": 0.8805999605289125,
+     "sinklocal_share": 0.022332998831537505
+    },
+    "shared": {
+     "resident_frac": 0.25,
+     "mass_recall": 0.9298475259648902,
+     "step_jaccard": 0.632852087128833,
+     "workingset_frac": 0.5802176339285714,
+     "pred_hit": 0.7020089285714286,
+     "sinklocal_share": 0.05810546875
     }
    }
   }

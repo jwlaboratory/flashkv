@@ -134,3 +134,18 @@ prefill 12.3s
   step 32 S=16328 nb=256
 wrote results/e1/q15_qa_needle_16k_b64
 === --model Qwen/Qwen2.5-1.5B-Instruct --kind summarize --ctx 16384 --steps 32 --block 64 --budget 1024 --out results/e1/q15_summarize_16k_b64 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-1.5B-Instruct: L=28 H=12 KVH=2 group=6
+prompt=summarize tokens=16271
+prefill 11.7s
+  step 0 S=16271 nb=255
+  step 4 S=16275 nb=255
+  step 8 S=16279 nb=255
+  step 12 S=16283 nb=255
+  step 16 S=16287 nb=255
+  step 20 S=16291 nb=255
+  step 24 S=16295 nb=255
+  step 28 S=16299 nb=255
+  step 32 S=16303 nb=255
+wrote results/e1/q15_summarize_16k_b64
+ALLDONE

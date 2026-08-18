@@ -1,0 +1,210 @@
+[
+ {
+  "prefill": "cache hit (0 s)",
+  "link": "25GbE x-DC",
+  "saved_ms": 461.21785548388715,
+  "pct": 66.54544916344042,
+  "ttft_layerwise": 693.0869973559016,
+  "ttft_sparse": 231.86914187201447
+ },
+ {
+  "prefill": "cache hit (0 s)",
+  "link": "100GbE",
+  "saved_ms": 148.6252038400009,
+  "pct": 68.84292698277049,
+  "ttft_layerwise": 215.89030326557398,
+  "ttft_sparse": 67.26509942557308
+ },
+ {
+  "prefill": "cache hit (0 s)",
+  "link": "RoCE 200Gb",
+  "saved_ms": 88.19304640000539,
+  "pct": 63.831827149771456,
+  "ttft_layerwise": 138.16469046557935,
+  "ttft_sparse": 49.97164406557397
+ },
+ {
+  "prefill": "cache hit (0 s)",
+  "link": "IB NDR 400Gb",
+  "saved_ms": 56.98796944000595,
+  "pct": 57.89912421425172,
+  "ttft_layerwise": 98.4263064655795,
+  "ttft_sparse": 41.438337025573546
+ },
+ {
+  "prefill": "cache hit (0 s)",
+  "link": "NVLink",
+  "saved_ms": 14.068192479992456,
+  "pct": 29.341217270249686,
+  "ttft_layerwise": 47.946860385566886,
+  "ttft_sparse": 33.87866790557443
+ },
+ {
+  "prefill": "fast pf 20k tok/s",
+  "link": "25GbE x-DC",
+  "saved_ms": 7.522800000001162,
+  "pct": 0.11458313328454518,
+  "ttft_layerwise": 6565.364189613958,
+  "ttft_sparse": 6557.841389613957
+ },
+ {
+  "prefill": "fast pf 20k tok/s",
+  "link": "100GbE",
+  "saved_ms": 1.8454544000077178,
+  "pct": 0.02814368249813924,
+  "ttft_layerwise": 6557.259875745586,
+  "ttft_sparse": 6555.414421345578
+ },
+ {
+  "prefill": "fast pf 20k tok/s",
+  "link": "RoCE 200Gb",
+  "saved_ms": 0.9122272000050557,
+  "pct": 0.01391453145113644,
+  "ttft_layerwise": 6555.9318559055855,
+  "ttft_sparse": 6555.0196287055805
+ },
+ {
+  "prefill": "fast pf 20k tok/s",
+  "link": "IB NDR 400Gb",
+  "saved_ms": 0.44561360000372474,
+  "pct": 0.006797793934180987,
+  "ttft_layerwise": 6555.267845985585,
+  "ttft_sparse": 6554.822232385582
+ },
+ {
+  "prefill": "fast pf 20k tok/s",
+  "link": "NVLink",
+  "saved_ms": 0.020290400009947973,
+  "pct": 0.0003095574499486868,
+  "ttft_layerwise": 6554.647614945586,
+  "ttft_sparse": 6554.627324545576
+ },
+ {
+  "prefill": "typ pf 5k tok/s",
+  "link": "25GbE x-DC",
+  "saved_ms": 7.52280000002159,
+  "pct": 0.028684331973338122,
+  "ttft_layerwise": 26226.16418961396,
+  "ttft_sparse": 26218.64138961394
+ },
+ {
+  "prefill": "typ pf 5k tok/s",
+  "link": "100GbE",
+  "saved_ms": 1.8454543999517625,
+  "pct": 0.007038867134707413,
+  "ttft_layerwise": 26218.059875745515,
+  "ttft_sparse": 26216.214421345565
+ },
+ {
+  "prefill": "typ pf 5k tok/s",
+  "link": "RoCE 200Gb",
+  "saved_ms": 0.912227199986404,
+  "pct": 0.0034795610871723366,
+  "ttft_layerwise": 26216.731855905564,
+  "ttft_sparse": 26215.81962870558
+ },
+ {
+  "prefill": "typ pf 5k tok/s",
+  "link": "IB NDR 400Gb",
+  "saved_ms": 0.44561360000372474,
+  "pct": 0.001699772836344565,
+  "ttft_layerwise": 26216.067845985588,
+  "ttft_sparse": 26215.622232385584
+ },
+ {
+  "prefill": "typ pf 5k tok/s",
+  "link": "NVLink",
+  "saved_ms": 0.020290399991296226,
+  "pct": 7.739864025716099e-05,
+  "ttft_layerwise": 26215.447614945588,
+  "ttft_sparse": 26215.4273245456
+ },
+ {
+  "prefill": "slow pf 1k tok/s",
+  "link": "25GbE x-DC",
+  "saved_ms": 7.5228000002312,
+  "pct": 0.005738925828639901,
+  "ttft_layerwise": 131083.76418961436,
+  "ttft_sparse": 131076.24138961412
+ },
+ {
+  "prefill": "slow pf 1k tok/s",
+  "link": "100GbE",
+  "saved_ms": 1.8454544001542672,
+  "pct": 0.0014079306576855524,
+  "ttft_layerwise": 131075.6598757459,
+  "ttft_sparse": 131073.81442134577
+ },
+ {
+  "prefill": "slow pf 1k tok/s",
+  "link": "RoCE 200Gb",
+  "saved_ms": 0.9122271997341613,
+  "pct": 0.0006959617392801224,
+  "ttft_layerwise": 131074.33185590577,
+  "ttft_sparse": 131073.41962870603
+ },
+ {
+  "prefill": "slow pf 1k tok/s",
+  "link": "IB NDR 400Gb",
+  "saved_ms": 0.44561360013517515,
+  "pct": 0.00033997187036741746,
+  "ttft_layerwise": 131073.66784598609,
+  "ttft_sparse": 131073.22223238595
+ },
+ {
+  "prefill": "slow pf 1k tok/s",
+  "link": "NVLink",
+  "saved_ms": 0.020290399447731033,
+  "pct": 1.5480222530064563e-05,
+  "ttft_layerwise": 131073.04761494542,
+  "ttft_sparse": 131073.02732454595
+ },
+ {
+  "ctx": 8192,
+  "link": "100GbE",
+  "ttft_layerwise": 54.351293985573825,
+  "ttft_sparse": 43.812564705572875
+ },
+ {
+  "ctx": 8192,
+  "link": "IB NDR 400Gb",
+  "ttft_layerwise": 25.372743679999967,
+  "ttft_sparse": 28.140973925245692
+ },
+ {
+  "ctx": 32768,
+  "link": "100GbE",
+  "ttft_layerwise": 170.63049142557588,
+  "ttft_sparse": 61.03332918557285
+ },
+ {
+  "ctx": 32768,
+  "link": "IB NDR 400Gb",
+  "ttft_layerwise": 72.93995734557569,
+  "ttft_sparse": 39.762529505573475
+ },
+ {
+  "ctx": 131072,
+  "link": "100GbE",
+  "ttft_layerwise": 215.89030326557398,
+  "ttft_sparse": 67.26509942557308
+ },
+ {
+  "ctx": 131072,
+  "link": "IB NDR 400Gb",
+  "ttft_layerwise": 98.4263064655795,
+  "ttft_sparse": 41.438337025573546
+ },
+ {
+  "ctx": 524288,
+  "link": "100GbE",
+  "ttft_layerwise": 233.58496374557328,
+  "ttft_sparse": 68.73811926557316
+ },
+ {
+  "ctx": 524288,
+  "link": "IB NDR 400Gb",
+  "ttft_layerwise": 105.27547158558053,
+  "ttft_sparse": 41.84354550557357
+ }
+]

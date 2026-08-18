@@ -1,0 +1,157 @@
+# Sparse-aware KV transfer for disaggregated prefill→decode — findings
+
+**Verdict: the idea is half right, and the half that's wrong is the half it was pitched on.**
+
+The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
+layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
+TTFT**. But the same mechanism is a **3–12× TTFT win** in the case where there is no
+prefill compute to hide behind — prefix-cache hits and KV reloads from a remote/host
+tier. It also only works with a *shared-index* selector (DeepSeek DSA), not a per-head
+one (NSA/MoBA/Quest), and only with a demand-pull path; push-only is worthless.
+
+---
+
+## 1. Sparsity survives — but only for shared-index selectors  (D2)
+
+Oracle block selection measured from exact per-head attention on Qwen2.5-0.5B/1.5B,
+11 traces, 4k–32k context, 4 prompt regimes, 16/64/128-token blocks.
+
+| per-head budget | **per-head top-k** (NSA/MoBA/Quest)<br>KV that must be resident | **shared index** (DeepSeek DSA)<br>KV that must be resident |
+|---|---|---|
+| 1.6 % | 3.4 – 8.9 % | **1.6 %** |
+| 6.25 % | 22 – 31 % | **6.3 %** |
+| 12.5 % | 42 – 50 % | **12.5 %** |
+| 25 % | 68 – 74 % | **25 %** |
+
+Each head is sparse, but heads disagree, and the KV cache is shared — so what has to be
+*resident* is the **union over heads**, which blows up ~4.5× at realistic budgets. At a
+12.5% budget you already need half the cache; there is nothing meaningful left to defer.
+
+A shared index (one score per key, all heads use the same selection — what DSA's
+lightning indexer does, and what NSA does within a GQA group) makes the resident set
+exactly the budget, by construction. **This is a hard architectural precondition.**
+
+## 2. The deferred remainder really is deferrable  (D3)
+
+Cumulative unique KV touched after 16 decode steps:
+
+| selector | 16k ctx | 32k ctx |
+|---|---|---|
+| shared, 1.6 % budget | 4.9 % | 5.5 % |
+| shared, 6.25 % budget | 20.4 % | 20.2 % |
+| per-head, 6.25 % budget | 67 % | 64 % |
+
+Step-to-step Jaccard for shared @1.6%: 0.52–0.94 (median ≈0.65). Working-set growth is
+sublinear and barely moves with context length, so at 128k with DSA's 2048-token budget
+~95% of the cache is genuinely cold for the first dozen-plus tokens. **This part of the
+idea checks out.**
+
+Larger blocks are markedly more stable (Jaccard 0.52 @16-tok → 0.64 @64-tok → 0.94
+@128-tok blocks), and they also transfer more efficiently — the two pressures agree.
+
+## 3. The prefill worker cannot know the selection, and guessing is not enough  (D1)
+
+Selection is a function of the *decode* query, which lives on the decode worker. The only
+query the prefill worker has is the last prefill token. Measured overlap between the last
+prefill token's selection and the first decode token's: **0.61–0.96, median 0.76**.
+
+That sounds usable. It is not, on its own:
+
+| 128k ctx, 100GbE, prefix-cache hit | push-only | push + demand-pull (20 µs RTT) |
+|---|---|---|
+| layer-wise | 784 ms | 216 ms |
+| sparse, predicted from last prefill token | **786 ms** | **67 ms** |
+| sparse, oracle selection | 25 ms | 26 ms |
+
+With 76% prediction accuracy and no way to ask for a miss, the decode worker waits for
+the mispredicted blocks to arrive in ordinary stream order — i.e. it waits for everything,
+and the whole scheme collapses to the baseline. **A demand-pull path is mandatory, not an
+optimization.** Note also that pull alone gets layer-wise from 784→216 ms; prioritization
+buys the remaining 216→67 ms. Both halves are needed.
+
+A "zero-knowledge" prioritization (attention sinks + sliding window, which the prefill
+worker *can* predict) covers 98% of the selected set at 4k context but only 59% at 16k and
+42% at 32k — it decays with context and is worth ≤6% TTFT at 128k. Not a substitute.
+
+## 4. Where the idea pays  (D5) — the decisive result
+
+TTFT reduction of sparse-predicted vs. layer-wise, 128k ctx, DSA budget, push+pull:
+
+| | 25GbE x-DC | 100GbE | RoCE 200Gb | IB NDR 400Gb | NVLink |
+|---|---|---|---|---|---|
+| **prefix-cache hit (no prefill)** | **66 %** | **69 %** | **64 %** | **58 %** | 29 % |
+| prefill 20k tok/s | 0.1 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| prefill 5k tok/s | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+| prefill 1k tok/s | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % |
+
+**The fresh-prefill row is the one the idea was pitched for, and it is flat zero.** At 128k
+a layer of MLA KV is 151 MB — 12 ms on 100GbE — against ~430 ms of prefill compute per
+layer. Layer-wise has 9–36× of headroom; the exposed transfer it leaves is 0.5–11 ms on
+top of a 26 s prefill, and sparse ordering shaves a further 0.4–7.5 ms. Sparse ordering
+does not reach 1% of TTFT until effective per-request bandwidth drops below **~0.1 GB/s**
+(a 100GbE link shared ~125 ways).
+
+Scaling in the cache-hit regime (100GbE): 8k → 19%, 32k → 64%, 128k → 68%, 512k → 69%.
+Below ~8k on a fast link it is net **negative** (−11% on IB NDR): scattered small messages
+cost more than they save. Benefit holds at 58–67% for budgets ≤3% of context, decaying to
+41% at a 25% budget.
+
+Cost side: deferring the remainder raises **post-TTFT stall** (trace-driven, 32k: 6.8 → 20.7 ms
+over 16 steps). It's a TTFT-for-TPOT trade, net positive here but not free.
+
+## 5. Transfer granularity is a real but manageable tax  (D4)
+
+Measured on this host, plus an analytic RDMA model with published constants:
+
+- **Device-side gather is nearly free** — MPS `index_select` runs at 0.83–0.90× of a
+  contiguous copy across 4 KB–1 MB blocks. Building the scatter list is not the problem.
+- **Host-side gather** collapses at small granularity: 0.13× at 4 KB, 0.71× at 64 KB,
+  ~1.0× at ≥1 MB.
+- **Wire overhead**: a 64 KB message reaches only 47–64% of peak on IB/RoCE/100GbE
+  (25% on NVLink); ≥1 MB reaches 84–97%.
+
+A 64-token MLA block is 72 KB per layer — right in the bad zone at ~50–60% of peak. The fix
+is to coalesce ≥16 blocks per message (≥1 MB), which the simulator already assumes. This
+also argues for larger selection blocks, which §2 shows are more stable anyway.
+
+---
+
+## What to build, if you pursue it
+
+1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
+   the regime where it actually pays.
+2. Requires a **shared-index (DSA-style) selector**. Per-head selection kills it.
+3. **Push + demand-pull**, not push alone. Prefill-side prediction from the last prefill
+   token is a useful prefetch hint (76% hit) but must have a miss path.
+4. Coalesce to ≥1 MB messages; prefer ≥64-token selection blocks.
+5. Watch TPOT — the deferred stream must be drained aggressively or later tokens stall.
+
+## What these experiments do NOT establish
+
+- Oracle selection is taken from **true attention mass on dense-trained** Qwen2.5 models,
+  not from a trained sparse selector, at **16–32k**, at **0.5B/1.5B**. A DSA-trained 671B
+  model at 128k should be *more* concentrated and more stable, so this likely understates
+  sparsity — but it is an extrapolation, not a measurement.
+- No real two-node RDMA test. The link is an analytic model (per-message overhead +
+  message-rate cap) calibrated with published NIC constants; the gather numbers are
+  measured, but on Apple silicon, not on an H100/H800 + CX-7.
+- Prefill throughput and decode step time are parameters, swept rather than measured.
+
+**The experiment that would settle it**: DeepSeek-V3.2-Exp on two nodes, measure TTFT for a
+prefix-cache hit with (a) layer-wise push, (b) layer-wise push + demand-pull, (c) DSA-index
+priority push + demand-pull. Prediction from this work: (a) ≫ (b) > (c), with (c) ≈ 3× better
+than (a) on 100GbE at 128k.
+
+---
+
+### Reproducing
+
+```bash
+./exp/run_e1_sweep.sh                       # attention traces (~15 min)
+.venv/bin/python exp/e1a_analyze.py         # §1, §2, §3 tables
+.venv/bin/python exp/e3_granularity.py      # §5
+.venv/bin/python exp/e2_pipeline_sim.py     # §4, DeepSeek-scale synthetic
+.venv/bin/python exp/e2_pipeline_sim.py --mode trace --trace results/e1/q05_qa_32k_b64
+.venv/bin/python exp/e5_regime.py           # §4 regime map + crossover
+.venv/bin/python exp/e6_plots.py            # results/findings.png
+```
