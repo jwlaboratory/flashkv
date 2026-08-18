@@ -1,0 +1,10 @@
+Note that running a local entrypoint in detached mode only keeps the last triggered Modal function alive after the parent process has been killed or disconnected.
+✓ Initialized. View run at 
+https://modal.com/apps/treehacks-26/main/ap-9TvAnsCTFKVISqQbaCIVsf
+✓ Created objects.
+├── 🔨 Created mount 
+│   /Users/shreybirmiwal/projects/jwlabs/flashkv/exp/e21_ruler_modal.py
+└── 🔨 Created function run_eval.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ [Errno 8] nodename nor servname provided, or not known                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
