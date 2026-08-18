@@ -11,7 +11,7 @@ ONCE per sample and the KV cache is cloned for each (lambda, budget) arm.
 import modal
 
 img = (modal.Image.debian_slim(python_version="3.11")
-       .pip_install("torch==2.6.0", "transformers==4.51.3", "accelerate", "numpy"))
+       .pip_install("torch==2.8.0", "transformers==4.57.1", "accelerate", "numpy", "sentencepiece"))
 app = modal.App("flashkv-ruler")
 hf = modal.Volume.from_name("hf-cache", create_if_missing=True)
 outvol = modal.Volume.from_name("flashkv-out", create_if_missing=True)
