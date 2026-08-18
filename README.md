@@ -34,5 +34,8 @@ we measured independently.**
 | `exp/e12_capacity.py` | bandwidth + HBM capacity at fleet scale |
 | `exp/e14_realistic.py` | corrected prefill throughput (§8) |
 | `exp/e15_horizon.py` | how far ahead can selection be predicted? |
-| `exp/e16_lookahead.py` | does lookahead prefetch move the latency wall? (no) |
+| `exp/e16_lookahead.py` | lookahead prefetch (oracle predictor; see §11) |
+| `exp/e18_freshblocks.py` | what predicts newly-needed blocks? |
+| `exp/e19_cacheaware.py` | cache-aware selection: mass vs miss tradeoff |
+| `exp/e20_quality.py` | real forward-pass NLL of cache-aware selection |
 | `exp/e6_plots.py` | figures |

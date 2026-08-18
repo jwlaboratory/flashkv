@@ -1,3 +1,22 @@
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
 Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights:   0%|          | 1/290 [00:00<03:03,  1.57it/s]Loading weights:  88%|████████▊ | 255/290 [00:00<00:00, 453.91it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 360.15it/s]
 [transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (186306 > 131072). Running this sequence through the model will result in indexing errors
+Qwen/Qwen2.5-0.5B-Instruct  ctx=6144  eval=256 tokens/window x 4 windows  block=64  k=12/100 (12.5%)
+
+  window 1/4 done
+  window 2/4 done
+  window 3/4 done
+  window 4/4 done
+
+1024 paired eval tokens. Differences are PAIRED (same tokens, same context);
++-  is a 95% CI on the paired mean difference.
+
+selector                       NLL          vs dense            vs top-k    fresh   ratio
+dense (no sparsity)         3.1272                --                  --       --      --
+block-sparse top-k          3.1527    +0.0255+-0.0169      +0.0000+-0.0000    0.020   1.00x
+cache-aware lam=0.03        3.1539    +0.0267+-0.0168      +0.0012+-0.0028    0.017   0.83x  ns
+cache-aware lam=0.1         3.1517    +0.0245+-0.0178      -0.0010+-0.0061    0.013   0.64x  ns
+cache-aware lam=0.3         3.1535    +0.0263+-0.0188      +0.0008+-0.0109    0.009   0.42x  ns
+cache-aware lam=1.0         3.1681    +0.0409+-0.0236      +0.0154+-0.0220    0.005   0.26x  ns
+
+* = statistically significant vs the standard top-k selector; ns = not

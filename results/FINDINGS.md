@@ -4,9 +4,9 @@
 the surviving half is dominated by a stronger design (§7 — don't reorder the bulk transfer,
 mostly don't do it), and that stronger design is already published (§9 — HiSparse, SAC).
 §8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.
-§10 finds the real predictive edge: one-step lookahead prefetch breaks the 61-layer serial
-round-trip chain and moves the latency wall from ~650us to >60ms, making paging viable
-cross-region. Perfect prediction adds only ~25% on top of the measured 0.93 predictor.**
+§10's lookahead claim is RETRACTED in §11 (the predictor it assumed is not realizable).
+§11 finds and validates a real gap instead: cache-aware selection, which cuts the miss rate
+2.4x and bandwidth 36% at no measurable quality cost.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -413,6 +413,86 @@ conclusion holds comfortably.
 
 ---
 
+## 11. A genuine gap, explored: cache-aware SELECTION
+
+### First, two dead ends (and a retraction)
+
+**Spatial locality of fresh blocks — disproven.** With a resident cache, the only blocks
+that can stall you are ones entering a layer's selection for the *first time*. I tested
+whether those cluster near the current selection. They do, weakly — but rank (blocks just
+below the top-k cut-off) dominates at every budget, and blending spatial in actively *hurts*
+at realistic k:
+
+| predictor (fraction of fresh blocks covered, k=32) | B=8 | B=16 | B=32 | B=64 |
+|---|---|---|---|---|
+| **rank** (= HiSparse's 2k-slot cache) | **0.583** | **0.724** | **0.844** | **0.918** |
+| spatial (neighbours of current selection) | 0.171 | 0.269 | 0.372 | 0.415 |
+| rank + spatial hybrid | 0.473 | 0.637 | 0.785 | 0.900 |
+| random | 0.056 | 0.119 | 0.235 | 0.463 |
+
+**Retraction of §10.** The same analysis undermines the lookahead claim. I modelled the
+prefetch as "a set containing 93% of step t+1's needs." The *realizable* predictor is
+"step t's selection" — and its 93% overlap with step t+1 is **exactly the part already
+resident**. Forwarding the current selection prefetches blocks you already have. The real
+mechanism is rank-based over-fetch, which is what HiSparse already does. §10's numbers
+describe an oracle, not an implementable system.
+
+### The gap that is actually open
+
+Every system surveyed in §9 — HiSparse, SAC, InfiniGen, ArkVale, ShadowKV — takes the sparse
+selection as **given** and optimises the fetching. None makes the *selection itself* aware of
+what is already in cache. But scores near the cut-off are nearly tied: block #33 is barely
+worse than #32. If #33 is resident and #32 is not, taking #33 costs almost no attention and
+saves a fetch.
+
+Rule: `score' = score + λ · (mean top-k score) · [block is resident]`, then take top-k of
+`score'`. λ=0 is the standard selector.
+
+**Real forward-pass validation** (custom block-sparse attention kernel, Qwen2.5-0.5B, 6k ctx,
+12.5% budget, 1024 paired held-out tokens across 4 windows, 95% CI on paired differences):
+
+| selector | NLL | vs dense | vs top-k | fresh/step | ratio |
+|---|---|---|---|---|---|
+| dense | 3.1272 | — | — | — | — |
+| block-sparse top-k | 3.1527 | +0.0255 ±0.0169 | — | 0.020 | 1.00× |
+| **cache-aware λ=0.1** | 3.1517 | +0.0245 ±0.0178 | **−0.0010 ±0.0061** | 0.013 | **0.64×** |
+| **cache-aware λ=0.3** | 3.1535 | +0.0263 ±0.0188 | **+0.0008 ±0.0109** | 0.009 | **0.42×** |
+| cache-aware λ=1.0 | 3.1681 | +0.0409 ±0.0236 | +0.0154 ±0.0220 | 0.005 | 0.26× |
+
+**Up to λ=0.3, quality is statistically indistinguishable from the standard selector while
+the miss rate falls 2.4×.** (An earlier 96-token run suggested cache-aware was *better* than
+top-k; with 1024 paired tokens that is clearly noise. The honest claim is "no measurable
+difference," not "better.")
+
+### What it is worth, and what it is not
+
+Measured on the real 256-step traces, λ=0.3 cuts the working set from 65.3% to 24.7% of the
+cache at a 12.5% budget (from 6.3% to 4.0% at DSA's 1.56% budget — the technique pays most
+where the budget is large). In the paging simulator at 128k that is **36% less bandwidth
+moved** and a proportional cut in resident HBM, which converts directly into concurrency.
+
+**It does not fix the latency chain.** TPOT at 5 ms RTT moves only 307.3 → 305.9 ms, because
+the round-trip cost is dominated by *early* decode steps, when the cache is nearly empty and
+almost everything is fresh no matter how the selector behaves. This is a bandwidth-and-memory
+optimisation, not a latency one.
+
+### Limits
+
+- Qwen2.5-0.5B, **not trained for sparse attention**, at 6k context. A DSA-trained model has
+  a learned selector whose behaviour under a residency bonus is unknown.
+- The λ=0.3 confidence interval (±0.0109) is ~43% of the sparsity penalty itself (0.0255), so
+  a small degradation cannot be ruled out — only bounded well below the cost of sparsity.
+- NLL on continuation text is a weak proxy for downstream task quality; retrieval-heavy tasks
+  (where a single dropped block loses the answer) are exactly where a residency bias could
+  hurt most, and were not tested.
+
+**The experiment that would settle it**: DeepSeek-V3.2-Exp or GLM-5.x with the residency
+bonus patched into the DSA indexer, evaluated on LongBench/RULER at 128k, sweeping λ. If
+accuracy holds to λ=0.3, it is a free 2.4× cut in KV-store traffic for any paged
+sparse-attention serving stack.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
@@ -473,5 +553,8 @@ holding TPOT at the compute floor, provided RTT stays under ~100 µs.
 .venv/bin/python exp/e13_plots2.py          # results/paging.png
 .venv/bin/python exp/e14_realistic.py       # §8 corrected hardware numbers
 .venv/bin/python exp/e15_horizon.py         # §10 prediction vs lookahead horizon
-.venv/bin/python exp/e16_lookahead.py       # §10 does lookahead move the latency wall?
+.venv/bin/python exp/e16_lookahead.py       # §10 lookahead (oracle predictor -- see §11)
+.venv/bin/python exp/e18_freshblocks.py     # §11 what predicts newly-needed blocks?
+.venv/bin/python exp/e19_cacheaware.py      # §11 cache-aware selection, mass/miss tradeoff
+.venv/bin/python exp/e20_quality.py --ctx 6144 --eval 256 --windows 4   # §11 real NLL
 ```
