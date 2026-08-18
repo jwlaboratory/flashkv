@@ -151,6 +151,8 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
     records = []          # list of dicts, one per (step)
     sel_union = []        # [steps][L] bool arrays over blocks (MLA-style shared KV)
     sel_kv = []           # [steps][L] count of (kvhead, block) pairs needed
+    raw_scores = []       # [steps][L] float16 [H, nb] -- lets any selection rule
+                          # be evaluated offline (per-head vs shared-index etc.)
     cur = ids[:, -1:]
     with torch.no_grad():
         for t in range(steps + 1):     # t=0 is the LAST PREFILL TOKEN
@@ -160,7 +162,7 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
             S = past.layers[0].keys.shape[2] if hasattr(past, "layers") else o.past_key_values[0][0].shape[2]
             nb = (S + block_size - 1) // block_size
             k = max(1, budget_tokens // block_size)
-            step_union, step_kv, per_layer = [], [], []
+            step_union, step_kv, per_layer, step_scores = [], [], [], []
             for l in range(L):
                 a = cap.store[l][0, :, -1, :]        # [H, S]
                 sc = block_scores(a, block_size)     # [H, nb]
@@ -189,7 +191,9 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
                 ))
                 step_union.append(u_ms.numpy())
                 step_kv.append(u_tk.numpy())
+                step_scores.append(sc.half().numpy())
             records.append(dict(step=t, S=S, nb=nb, layers=per_layer))
+            raw_scores.append(step_scores)
             sel_union.append(step_union)
             sel_kv.append(step_kv)
             cur = o.logits[:, -1:].argmax(-1)
@@ -208,7 +212,12 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
                 n_sink_blocks=n_sink_blocks, local_tokens=local_tokens,
                 records=records)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    np.savez_compressed(out + ".npz", sel_mass=pack(sel_union), sel_topk=pack(sel_kv))
+    sc_arr = np.zeros((len(raw_scores), L, H, nb_max), dtype=np.float16)
+    for i, st in enumerate(raw_scores):
+        for l, v in enumerate(st):
+            sc_arr[i, l, :, :v.shape[1]] = v
+    np.savez_compressed(out + ".npz", sel_mass=pack(sel_union),
+                        sel_topk=pack(sel_kv), scores=sc_arr)
     json.dump(meta, open(out + ".json", "w"))
     print("wrote", out, flush=True)
 
