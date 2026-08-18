@@ -567,6 +567,53 @@ useful result than the uniform "no measurable cost" that NLL alone suggested.
 
 ---
 
+## 13. Attempted: a model actually trained for sparse attention (blocked, diagnosed)
+
+§12's subject, Qwen2.5-7B, was never trained to tolerate sparsity. The right subject is a
+model whose attention was *trained* block-sparse. **MiniCPM4.1-8B** fits: trained with
+InfLLM-v2 (NSA-family trainable block-sparse attention, <5% of a 128K context per token),
+64k native window, openly available.
+
+Built the harness (`exp/e23_minicpm.py`): 64k context, **k=32 blocks — DeepSeek DSA's actual
+selected-block count**, a tight k=8 arm to probe §12's threshold, and three RULER tasks
+(multikey / multivalue / multiquery). MiniCPM defines its own attention classes rather than
+using the HF registry, so the selector is bound per-layer with prefill delegating to the
+model's own fast path.
+
+**The run returned 0% for every arm including dense** — a harness failure, not a result.
+Diagnostics (`exp/e24_diag.py`) isolate it:
+
+| context | prefill | template | retrieved | output |
+|---|---|---|---|---|
+| 4k | single & chunked | all three | near-miss | *"The special magic number for ocean is 742"* (gold 7429183) |
+| 16k | single & chunked | all three | no | `. is. is. is. is.` |
+| 32k | single & chunked | all three | no | `<\|im_end\|></<\|im_end\|>...` |
+
+At 4k the model works and nearly retrieves. At ≥16k it degenerates **identically under
+single-shot and chunked prefill, and under chat / no-think / raw templates** — so it is
+neither the prefill code, explicit `position_ids`, nor the reasoning template.
+
+Two candidate causes, not yet separated:
+1. **The haystack.** 2000 repetitions of one sentence is pathological; the model falls into
+   copying it. Real RULER uses varied prose. A natural-text retest was launched and did not
+   complete (suspected OOM on 64k single-shot prefill).
+2. **Dense attention is out-of-distribution for this model at long context.** MiniCPM4.1's
+   InfLLM-v2 path requires `flash_attention_2`; its long-context training was done *with*
+   sparse attention. Running it densely at 16k+ may simply be a regime it was never trained
+   in — which would be a substantive finding in its own right, and a caution for anyone
+   benchmarking sparse-trained models against a "dense baseline."
+
+**Next step**: load with `attn_implementation="flash_attention_2"` so the native
+`MiniCPMInfLLMv2Attention` path is active, and hook the residency bonus into *its own*
+block-selection scores rather than replacing attention wholesale. That also makes the test
+stronger — the bonus would then modify a **trained** selector, which is the real question
+§11–§12 were circling. Use a natural-prose haystack, and chunk the prefill to bound memory.
+
+Until that lands, **§12 stands as the only end-to-end validation**, on a model not trained
+for sparsity — a real limitation, not a resolved one.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
