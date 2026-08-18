@@ -1,0 +1,62 @@
+measured working-set curves from 4 traces (16296, 32673, 16271, 16271 ctx)
+
+================================================================================================
+### ctx=32768  full KV = 2.30 GB/request
+================================================================================================
+ gen len  working set  bulk GB/req  pager GB/req  pager/bulk   verdict
+      16         4.6%         2.30          0.11       0.05x   pager wins
+      32         7.4%         2.30          0.17       0.07x   pager wins
+      64        10.1%         2.30          0.23       0.10x   pager wins
+     128        13.0%         2.30          0.30       0.13x   pager wins
+     256        15.2%         2.30          0.35       0.15x   pager wins
+     512        18.1%         2.30          0.42       0.18x   pager wins (extrapolated)
+    1024        24.1%         2.30          0.55       0.24x   pager wins (extrapolated)
+
+link           policy       GB/req  max req/s  max concurrent  HBM/req GB  HBM-capped batch
+25GbE x-DC     bulk           2.30       1.35             4.3        2.30              17.4
+25GbE x-DC     pager          0.30      10.36            33.2        0.30             133.7
+
+100GbE         bulk           2.30       5.43            17.4        2.30              17.4
+100GbE         pager          0.30      41.79           133.7        0.30             133.7
+
+RoCE 200Gb     bulk           2.30      10.86            34.7        2.30              17.4
+RoCE 200Gb     pager          0.30      83.58           267.4        0.30             133.7
+
+IB NDR 400Gb   bulk           2.30      21.71            69.5        2.30              17.4
+IB NDR 400Gb   pager          0.30     167.15           534.9        0.30             133.7
+
+PCIe4 host     bulk           2.30      10.42            33.4        2.30              17.4
+PCIe4 host     pager          0.30      80.23           256.7        0.30             133.7
+
+   ^ generation length 128 tokens, working set 13.0%
+
+================================================================================================
+### ctx=131072  full KV = 9.21 GB/request
+================================================================================================
+ gen len  working set  bulk GB/req  pager GB/req  pager/bulk   verdict
+      16         4.6%         9.21          0.43       0.05x   pager wins
+      32         7.4%         9.21          0.68       0.07x   pager wins
+      64        10.1%         9.21          0.93       0.10x   pager wins
+     128        13.0%         9.21          1.20       0.13x   pager wins
+     256        15.2%         9.21          1.40       0.15x   pager wins
+     512        18.1%         9.21          1.67       0.18x   pager wins (extrapolated)
+    1024        24.1%         9.21          2.22       0.24x   pager wins (extrapolated)
+
+link           policy       GB/req  max req/s  max concurrent  HBM/req GB  HBM-capped batch
+25GbE x-DC     bulk           9.21       0.34             1.1        9.21               4.3
+25GbE x-DC     pager          1.20       2.59             8.3        1.20              33.4
+
+100GbE         bulk           9.21       1.36             4.3        9.21               4.3
+100GbE         pager          1.20      10.45            33.4        1.20              33.4
+
+RoCE 200Gb     bulk           9.21       2.71             8.7        9.21               4.3
+RoCE 200Gb     pager          1.20      20.89            66.9        1.20              33.4
+
+IB NDR 400Gb   bulk           9.21       5.43            17.4        9.21               4.3
+IB NDR 400Gb   pager          1.20      41.79           133.7        1.20              33.4
+
+PCIe4 host     bulk           9.21       2.61             8.3        9.21               4.3
+PCIe4 host     pager          1.20      20.06            64.2        1.20              33.4
+
+   ^ generation length 128 tokens, working set 13.0%
+

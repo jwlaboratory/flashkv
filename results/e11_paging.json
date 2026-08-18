@@ -1,0 +1,394 @@
+[
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "layer-wise bulk",
+  "ttft": 32.54391338666643,
+  "tpot": 24.999999999999925,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "sparse priority + bulk",
+  "ttft": 26.709813653333224,
+  "tpot": 24.999999999999925,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged + prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.99999999999993,
+  "gb": 0.02285568
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged, no prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.99999999999993,
+  "gb": 0.0221184
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged, cold index",
+  "ttft": 25.294331199999995,
+  "tpot": 24.999999999999925,
+  "gb": 0.073777152
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "layer-wise bulk",
+  "ttft": 32.54391338666643,
+  "tpot": 24.999999999999826,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "sparse priority + bulk",
+  "ttft": 26.709813653333224,
+  "tpot": 24.999999999999833,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged + prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.999999999999833,
+  "gb": 0.049471488
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged, no prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.999999999999833,
+  "gb": 0.048955392
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged, cold index",
+  "ttft": 25.294331199999995,
+  "tpot": 24.999999999999833,
+  "gb": 0.10039296
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "layer-wise bulk",
+  "ttft": 32.54391338666643,
+  "tpot": 24.999999999998888,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "sparse priority + bulk",
+  "ttft": 26.709813653333224,
+  "tpot": 24.999999999998888,
+  "gb": 0.458293248
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged + prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.999999999998888,
+  "gb": 0.074981376
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged, no prefetch",
+  "ttft": 25.115592959999994,
+  "tpot": 24.999999999998888,
+  "gb": 0.074539008
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged, cold index",
+  "ttft": 25.294331199999995,
+  "tpot": 24.99999999999889,
+  "gb": 0.125902848
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "layer-wise bulk",
+  "ttft": 38.01513738666651,
+  "tpot": 25.11488684799995,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "sparse priority + bulk",
+  "ttft": 29.79562122666648,
+  "tpot": 25.165544127999947,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged + prefetch",
+  "ttft": 25.191084159999996,
+  "tpot": 24.99999999999993,
+  "gb": 0.051167232
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged, no prefetch",
+  "ttft": 25.231185919999994,
+  "tpot": 24.999999999999925,
+  "gb": 0.049618944
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 16,
+  "policy": "paged, cold index",
+  "ttft": 25.885413013333327,
+  "tpot": 24.99999999999993,
+  "gb": 0.152420352
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "layer-wise bulk",
+  "ttft": 38.01513738666651,
+  "tpot": 25.027354011428393,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "sparse priority + bulk",
+  "ttft": 29.79562122666648,
+  "tpot": 25.039415268571258,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged + prefetch",
+  "ttft": 25.191084159999996,
+  "tpot": 24.999999999999833,
+  "gb": 0.091938816
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged, no prefetch",
+  "ttft": 25.231185919999994,
+  "tpot": 24.999999999999833,
+  "gb": 0.091496448
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 64,
+  "policy": "paged, cold index",
+  "ttft": 25.885413013333327,
+  "tpot": 24.999999999999833,
+  "gb": 0.193191936
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "layer-wise bulk",
+  "ttft": 38.01513738666651,
+  "tpot": 25.006758049881242,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "sparse priority + bulk",
+  "ttft": 29.79562122666648,
+  "tpot": 25.009737889881244,
+  "gb": 0.91127808
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged + prefetch",
+  "ttft": 25.191084159999996,
+  "tpot": 24.999999999998888,
+  "gb": 0.154386432
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged, no prefetch",
+  "ttft": 25.231185919999994,
+  "tpot": 24.999999999998888,
+  "gb": 0.154017792
+ },
+ {
+  "trace": "qa_needle",
+  "gen": 256,
+  "policy": "paged, cold index",
+  "ttft": 25.885413013333327,
+  "tpot": 24.999999999998888,
+  "gb": 0.255639552
+ },
+ {
+  "rtt_us": 10,
+  "layer-wise bulk": 27.97403009015856,
+  "sparse priority + bulk": 28.75181830095231,
+  "paged + prefetch": 24.999999999999698,
+  "paged, no prefetch": 24.999999999999698,
+  "paged, cold index": 24.999999999999687
+ },
+ {
+  "rtt_us": 20,
+  "layer-wise bulk": 28.251172947302027,
+  "sparse priority + bulk": 29.142611951746495,
+  "paged + prefetch": 24.999999999999698,
+  "paged, no prefetch": 24.99999999999969,
+  "paged, cold index": 24.999999999999687
+ },
+ {
+  "rtt_us": 50,
+  "layer-wise bulk": 29.08260151873079,
+  "sparse priority + bulk": 30.314992904126825,
+  "paged + prefetch": 24.999999999999694,
+  "paged, no prefetch": 25.004747570793267,
+  "paged, cold index": 25.001515777381893
+ },
+ {
+  "rtt_us": 100,
+  "layer-wise bulk": 30.468315804444476,
+  "sparse priority + bulk": 32.268961158095195,
+  "paged + prefetch": 26.259850488888237,
+  "paged, no prefetch": 26.286750806350707,
+  "paged, cold index": 26.2598504888881
+ },
+ {
+  "rtt_us": 200,
+  "layer-wise bulk": 33.239744375871574,
+  "sparse priority + bulk": 36.17689766603059,
+  "paged + prefetch": 38.03748614602768,
+  "paged, no prefetch": 38.143593188565696,
+  "paged, cold index": 38.03748614602715
+ },
+ {
+  "rtt_us": 500,
+  "layer-wise bulk": 41.554030090157994,
+  "sparse priority + bulk": 47.90070718984106,
+  "paged + prefetch": 89.87304473395217,
+  "paged, no prefetch": 90.17192147807086,
+  "paged, cold index": 89.87304473395129
+ },
+ {
+  "rtt_us": 1000,
+  "layer-wise bulk": 55.41117294728406,
+  "sparse priority + bulk": 67.44038972950733,
+  "paged + prefetch": 178.1746320355815,
+  "paged, no prefetch": 178.76715957336836,
+  "paged, cold index": 178.17463203558188
+ },
+ {
+  "panel": "C",
+  "link": "IB NDR 400Gb",
+  "policy": "layer-wise bulk",
+  "ttft": 98.4263064655795,
+  "tpot": 25.108698373018036,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "IB NDR 400Gb",
+  "policy": "sparse priority + bulk",
+  "ttft": 41.438337025573546,
+  "tpot": 25.15986662839074,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "IB NDR 400Gb",
+  "policy": "paged + prefetch",
+  "ttft": 27.443378347540726,
+  "tpot": 24.999999999998835,
+  "gb": 1.417273344
+ },
+ {
+  "panel": "C",
+  "link": "IB NDR 400Gb",
+  "policy": "paged, cold index",
+  "ttft": 36.705069665573895,
+  "tpot": 24.999999999998813,
+  "gb": 2.44068352
+ },
+ {
+  "panel": "C",
+  "link": "100GbE",
+  "policy": "layer-wise bulk",
+  "ttft": 215.89030326557398,
+  "tpot": 25.80323096344916,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "100GbE",
+  "policy": "sparse priority + bulk",
+  "ttft": 67.26509942557308,
+  "tpot": 26.02346883513564,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "100GbE",
+  "policy": "paged + prefetch",
+  "ttft": 32.68444227147433,
+  "tpot": 24.999999999998824,
+  "gb": 1.417273344
+ },
+ {
+  "panel": "C",
+  "link": "100GbE",
+  "policy": "paged, cold index",
+  "ttft": 112.99277046557354,
+  "tpot": 24.999999999998654,
+  "gb": 2.44068352
+ },
+ {
+  "panel": "C",
+  "link": "25GbE x-DC",
+  "policy": "layer-wise bulk",
+  "ttft": 693.0869973559016,
+  "tpot": 30.483632779247802,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "25GbE x-DC",
+  "policy": "sparse priority + bulk",
+  "ttft": 231.86914187201447,
+  "tpot": 31.60382342314407,
+  "gb": 9.210691584
+ },
+ {
+  "panel": "C",
+  "link": "25GbE x-DC",
+  "policy": "paged + prefetch",
+  "ttft": 104.34422058170719,
+  "tpot": 25.000399134972387,
+  "gb": 1.417273344
+ },
+ {
+  "panel": "C",
+  "link": "25GbE x-DC",
+  "policy": "paged, cold index",
+  "ttft": 444.2365354204033,
+  "tpot": 25.000399134971662,
+  "gb": 2.44068352
+ }
+]

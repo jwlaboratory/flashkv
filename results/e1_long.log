@@ -1,0 +1,153 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=16296
+prefill 3.7s
+  step 0 S=16293 nb=255
+  step 8 S=16301 nb=255
+  step 16 S=16309 nb=255
+  step 24 S=16317 nb=255
+  step 32 S=16325 nb=256
+  step 40 S=16333 nb=256
+  step 48 S=16341 nb=256
+  step 56 S=16349 nb=256
+  step 64 S=16357 nb=256
+  step 72 S=16365 nb=256
+  step 80 S=16373 nb=256
+  step 88 S=16381 nb=256
+  step 96 S=16389 nb=257
+  step 104 S=16397 nb=257
+  step 112 S=16405 nb=257
+  step 120 S=16413 nb=257
+  step 128 S=16421 nb=257
+  step 136 S=16429 nb=257
+  step 144 S=16437 nb=257
+  step 152 S=16445 nb=257
+  step 160 S=16453 nb=258
+  step 168 S=16461 nb=258
+  step 176 S=16469 nb=258
+  step 184 S=16477 nb=258
+  step 192 S=16485 nb=258
+  step 200 S=16493 nb=258
+  step 208 S=16501 nb=258
+  step 216 S=16509 nb=258
+  step 224 S=16517 nb=259
+  step 232 S=16525 nb=259
+  step 240 S=16533 nb=259
+  step 248 S=16541 nb=259
+  step 256 S=16549 nb=259
+wrote results/e1l/q05_qa_16k
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=summarize tokens=16271
+prefill 3.3s
+  step 0 S=16268 nb=255
+  step 8 S=16276 nb=255
+  step 16 S=16284 nb=255
+  step 24 S=16292 nb=255
+  step 32 S=16300 nb=255
+  step 40 S=16308 nb=255
+  step 48 S=16316 nb=255
+  step 56 S=16324 nb=256
+  step 64 S=16332 nb=256
+  step 72 S=16340 nb=256
+  step 80 S=16348 nb=256
+  step 88 S=16356 nb=256
+  step 96 S=16364 nb=256
+  step 104 S=16372 nb=256
+  step 112 S=16380 nb=256
+  step 120 S=16388 nb=257
+  step 128 S=16396 nb=257
+  step 136 S=16404 nb=257
+  step 144 S=16412 nb=257
+  step 152 S=16420 nb=257
+  step 160 S=16428 nb=257
+  step 168 S=16436 nb=257
+  step 176 S=16444 nb=257
+  step 184 S=16452 nb=258
+  step 192 S=16460 nb=258
+  step 200 S=16468 nb=258
+  step 208 S=16476 nb=258
+  step 216 S=16484 nb=258
+  step 224 S=16492 nb=258
+  step 232 S=16500 nb=258
+  step 240 S=16508 nb=258
+  step 248 S=16516 nb=259
+  step 256 S=16524 nb=259
+wrote results/e1l/q05_sum_16k
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-0.5B-Instruct: L=24 H=14 KVH=2 group=7
+prompt=qa_needle tokens=32673
+prefill 19.5s
+  step 0 S=32670 nb=511
+  step 8 S=32678 nb=511
+  step 16 S=32686 nb=511
+  step 24 S=32694 nb=511
+  step 32 S=32702 nb=511
+  step 40 S=32710 nb=512
+  step 48 S=32718 nb=512
+  step 56 S=32726 nb=512
+  step 64 S=32734 nb=512
+  step 72 S=32742 nb=512
+  step 80 S=32750 nb=512
+  step 88 S=32758 nb=512
+  step 96 S=32766 nb=512
+  step 104 S=32774 nb=513
+  step 112 S=32782 nb=513
+  step 120 S=32790 nb=513
+  step 128 S=32798 nb=513
+  step 136 S=32806 nb=513
+  step 144 S=32814 nb=513
+  step 152 S=32822 nb=513
+  step 160 S=32830 nb=513
+  step 168 S=32838 nb=514
+  step 176 S=32846 nb=514
+  step 184 S=32854 nb=514
+  step 192 S=32862 nb=514
+  step 200 S=32870 nb=514
+  step 208 S=32878 nb=514
+  step 216 S=32886 nb=514
+  step 224 S=32894 nb=514
+  step 232 S=32902 nb=515
+  step 240 S=32910 nb=515
+  step 248 S=32918 nb=515
+  step 256 S=32926 nb=515
+wrote results/e1l/q05_qa_32k
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-1.5B-Instruct: L=28 H=12 KVH=2 group=6
+prompt=summarize tokens=16271
+prefill 9.9s
+  step 0 S=16268 nb=255
+  step 8 S=16276 nb=255
+  step 16 S=16284 nb=255
+  step 24 S=16292 nb=255
+  step 32 S=16300 nb=255
+  step 40 S=16308 nb=255
+  step 48 S=16316 nb=255
+  step 56 S=16324 nb=256
+  step 64 S=16332 nb=256
+  step 72 S=16340 nb=256
+  step 80 S=16348 nb=256
+  step 88 S=16356 nb=256
+  step 96 S=16364 nb=256
+  step 104 S=16372 nb=256
+  step 112 S=16380 nb=256
+  step 120 S=16388 nb=257
+  step 128 S=16396 nb=257
+  step 136 S=16404 nb=257
+  step 144 S=16412 nb=257
+  step 152 S=16420 nb=257
+  step 160 S=16428 nb=257
+  step 168 S=16436 nb=257
+  step 176 S=16444 nb=257
+  step 184 S=16452 nb=258
+  step 192 S=16460 nb=258
+  step 200 S=16468 nb=258
+  step 208 S=16476 nb=258
+  step 216 S=16484 nb=258
+  step 224 S=16492 nb=258
+  step 232 S=16500 nb=258
+  step 240 S=16508 nb=258
+  step 248 S=16516 nb=259
+  step 256 S=16524 nb=259
+wrote results/e1l/q15_sum_16k
+LONGDONE

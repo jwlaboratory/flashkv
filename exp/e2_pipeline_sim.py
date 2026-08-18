@@ -52,13 +52,28 @@ def runs(mask, cap=MAX_UNIT_BLOCKS):
     return out
 
 def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
-             link, rtt_us=0.0, index_frac=0.11, demand=True):
+             link, rtt_us=0.0, index_frac=0.11, demand=True, background=True,
+             cold_unit=None, index_bytes=0.0):
     """need[step][layer] bool[nb]; prio[layer] bool[nb] = what P sends first.
 
     demand=True   receiver may pull a missing block out of order, costing one
                   RTT (push + demand-pull, what you would actually build)
     demand=False  pure push: the receiver just waits for the stream to reach the
                   block in the sender's chosen order
+    background=False  the cold remainder is NEVER bulk-streamed; blocks outside
+                  the priority set are fetched only if a decode step asks for
+                  them.  This is "remote paged attention": the KV stays in the
+                  store and only the working set is ever moved.
+    index_bytes   bytes of INDEXER KEY cache per layer that must land before the
+                  decode worker can choose any block at all.  A DSA pager cannot
+                  select without the lightning-indexer keys for every token
+                  (~128 B/token/layer fp8, vs 1152 for the MLA latent), so this
+                  is a hard floor on a pager's bandwidth AND its TTFT.  Zero if
+                  the index cache is already resident on the decode worker.
+    cold_unit     transfer granularity for cold blocks, in blocks.  Bulk
+                  streaming coalesces to ~1MB (efficient); a pager fetches the
+                  single block it wants (no waste, but a small message).  This
+                  distinction is worth several GB, so it is not cosmetic.
     Event-driven: `future` holds units by release time, `ready` is a priority
     heap; demand fetches are located per layer by bisect and pulled out lazily."""
     import bisect, heapq, itertools
@@ -74,7 +89,8 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                 units.append((l, s0, min(MAX_UNIT_BLOCKS, nb - s0), 0, r))
         else:
             for s0, c in runs(prio[l]):   units.append((l, s0, c, l, rel))
-            for s0, c in runs(~prio[l]):  units.append((l, s0, c, L + l, rel))
+            cu = cold_unit or MAX_UNIT_BLOCKS
+            for s0, c in runs(~prio[l], cu): units.append((l, s0, c, L + l, rel))
     U = [dict(layer=a, start=b, count=c, prio=d, release=e,
               bytes=c * block_bytes, done=False) for a, b, c, d, e in units]
 
@@ -88,6 +104,8 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
     ready = []
     arrived = np.zeros((L, nb), bool)
     link_t = dec_t = stall = stall_post = moved = 0.0
+    n_sent = 0
+    step_times = []
     ttft = bytes_ttft = None
 
     def release_upto(t):
@@ -96,12 +114,15 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             if not U[i]["done"]:
                 heapq.heappush(ready, (U[i]["prio"], U[i]["layer"], U[i]["start"], i))
 
+    nonlocal_msgs = [0]
+
     def run_unit(i, rtt=0.0):
         nonlocal link_t, moved
         u = U[i]
         link_t = max(link_t, u["release"]) + rtt + link.time(u["bytes"])
         arrived[u["layer"], u["start"]:u["start"] + u["count"]] = True
         u["done"] = True; moved += u["bytes"]
+        nonlocal_msgs[0] += max(1, int(np.ceil(u["bytes"] / link.max_msg)))
         return link_t
 
     def pop_ready():
@@ -123,8 +144,18 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
         return None
 
     n_pending = len(U)
+    idx_done = np.zeros(L, bool)
+    idx_t = np.zeros(L)
     for step in range(len(need)):
         for l in range(L):
+            if index_bytes > 0 and not idx_done[l]:
+                link_t = max(link_t, (l + 1) * t_pf_layer) + link.time(index_bytes)
+                nonlocal_msgs[0] += max(1, int(np.ceil(index_bytes / link.max_msg)))
+                moved += index_bytes; idx_done[l] = True; idx_t[l] = link_t
+                if link_t > dec_t:
+                    d = link_t - dec_t; stall += d
+                    if step > 0: stall_post += d
+                    dec_t = link_t
             want = need[step][l][:nb]
             while True:
                 missing = np.flatnonzero(want & ~arrived[l])
@@ -148,6 +179,8 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             while n_pending:                      # link works during compute
                 release_upto(max(link_t, dec_t))
                 i = pop_ready()
+                if i is not None and not background and U[i]["prio"] >= L:
+                    continue                      # cold block: page it, don't push it
                 if i is None:
                     if not future: break
                     link_t = max(link_t, future[0][0]); continue
@@ -155,8 +188,9 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                     heapq.heappush(ready, (U[i]["prio"], U[i]["layer"],
                                            U[i]["start"], i)); break
                 run_unit(i); n_pending -= 1
+        step_times.append(dec_t)
         if step == 0: ttft, bytes_ttft = dec_t, moved
-    while n_pending:                              # drain
+    while n_pending and background:               # drain
         release_upto(link_t)
         i = pop_ready()
         if i is None:
@@ -164,11 +198,70 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
             link_t = max(link_t, future[0][0]); continue
         run_unit(i); n_pending -= 1
     ideal = len(need) * L * t_dec_layer
+    tpot = ((step_times[-1] - step_times[0]) / max(1, len(step_times) - 1)
+            if len(step_times) > 1 else 0.0)
     return dict(policy=policy, ttft=ttft, total=dec_t, stall=stall,
                 stall_post_ttft=stall_post, decode_ideal=ideal,
-                bytes_before_ttft=bytes_ttft, link_done=link_t)
+                bytes_before_ttft=bytes_ttft, link_done=link_t,
+                total_bytes=moved, n_msgs=nonlocal_msgs[0], tpot=tpot,
+                step_times=step_times)
 
 # ------------------------------------------------------- synthetic trace
+def synth_ws(L, nb, k, steps, fresh_curve, jaccard, pred_hit, sink, local, seed=0):
+    """Synthetic trace calibrated to a MEASURED working-set curve.
+
+    The naive generator (`synth`) resamples the non-kept blocks uniformly, so it
+    random-walks over the whole cache and reaches ~54% coverage by step 256.
+    Real traces saturate near 15%: the selection keeps returning to blocks it has
+    already used.  Here `fresh_curve[t]` -- the measured share of step t's picks
+    never seen before -- drives how many genuinely new blocks appear, and the
+    remainder is drawn from the previous step (to match Jaccard) and the older
+    seen pool.  Reproduces both statistics by construction.
+    """
+    rng = np.random.default_rng(seed)
+    forced = np.zeros(nb, bool); forced[:sink] = True; forced[nb - local:] = True
+    keep_frac = 2 * jaccard / (1 + jaccard)
+    seen = [forced.copy() for _ in range(L)]
+    cur = []
+    for l in range(L):
+        m = forced.copy()
+        free = np.flatnonzero(~forced)
+        m[rng.choice(free, min(max(0, k - int(forced.sum())), len(free)), replace=False)] = True
+        cur.append(m); seen[l] |= m
+    pred = []
+    for l in range(L):
+        pm = cur[l].copy()
+        on = np.flatnonzero(pm & ~forced)
+        drop = rng.choice(on, int(round((1 - pred_hit) * len(on))), replace=False)
+        pm[drop] = False
+        off = np.flatnonzero(~pm)
+        pm[rng.choice(off, min(len(drop), len(off)), replace=False)] = True
+        pred.append(pm)
+    need = []
+    for t in range(steps):
+        need.append(np.stack(cur))
+        fr = fresh_curve[min(t, len(fresh_curve) - 1)]
+        nxt = []
+        for l in range(L):
+            m = forced.copy()
+            n_fresh = int(round(fr * k))
+            prev_on = np.flatnonzero(cur[l] & ~forced)
+            n_keep = min(len(prev_on), max(0, int(round(keep_frac * k)) - int(forced.sum())))
+            if n_keep > 0:
+                m[rng.choice(prev_on, n_keep, replace=False)] = True
+            old = np.flatnonzero(seen[l] & ~m)
+            n_old = max(0, k - int(m.sum()) - n_fresh)
+            if n_old > 0 and len(old):
+                m[rng.choice(old, min(n_old, len(old)), replace=False)] = True
+            unseen = np.flatnonzero(~seen[l] & ~m)
+            n_new = max(0, k - int(m.sum()))
+            if n_new > 0 and len(unseen):
+                m[rng.choice(unseen, min(n_new, len(unseen)), replace=False)] = True
+            nxt.append(m); seen[l] |= m
+        cur = nxt
+    return need, np.stack(pred), forced
+
+
 def synth(L, nb, k, steps, jaccard, pred_hit, sink, local, seed=0):
     rng = np.random.default_rng(seed)
     forced = np.zeros(nb, bool); forced[:sink] = True; forced[nb - local:] = True

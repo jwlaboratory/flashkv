@@ -34,3 +34,13 @@ prefill 23.6s
   step 16 S=32682 nb=511
   step 24 S=32690 nb=511
 wrote results/e1t/q05_qa_32k
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Qwen/Qwen2.5-1.5B-Instruct: L=28 H=12 KVH=2 group=6
+prompt=qa_needle tokens=16296
+prefill 12.5s
+  step 0 S=16289 nb=255
+  step 8 S=16297 nb=255
+  step 16 S=16305 nb=255
+  step 24 S=16313 nb=255
+wrote results/e1t/q15_qa_16k
+TAILDONE

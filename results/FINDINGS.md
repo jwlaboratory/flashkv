@@ -1,6 +1,8 @@
 # Sparse-aware KV transfer for disaggregated prefill→decode — findings
 
-**Verdict: the idea is half right, and the half that's wrong is the half it was pitched on.**
+**Verdict: the idea is half right, and the half that's wrong is the half it was pitched on.
+A second, adversarial round (§7) found that the surviving half is itself dominated by a
+stronger design — don't reorder the bulk transfer, mostly don't do it.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -180,10 +182,88 @@ you miss.**
 
 ---
 
+## 7. Adversarial round: the premise "we still send everything" is the part that fails
+
+The idea as posed keeps the bulk transfer and only reorders it. Two measurements say that
+is the wrong design — the cold blocks should mostly never be sent at all.
+
+### The working set saturates (256-step traces, the measurement §2 was too short to make)
+
+| trace | WS@8 | WS@32 | WS@128 | WS@256 | fresh blocks/step, last 32 |
+|---|---|---|---|---|---|
+| Qwen0.5B qa 16k | 3.7 % | 8.1 % | 14.2 % | **16.3 %** | 0.1 % |
+| Qwen0.5B qa 32k | 3.9 % | 8.2 % | 13.5 % | **16.9 %** | 0.6 % |
+| Qwen0.5B summarize 16k | 2.9 % | 7.2 % | 12.0 % | **12.8 %** | 0.8 % |
+| Qwen1.5B summarize 16k | 2.6 % | 5.9 % | 12.3 % | **14.7 %** | 1.2 % |
+
+Generating 256 tokens touches ~15% of the KV, and the marginal rate has fallen to ~1% —
+the selection keeps returning to blocks it has already used. Extrapolating the tail slope,
+1024 generated tokens still only reaches ~24%. **A bulk transfer ships 4–7× more data than
+the request will ever read**, and there is no generation length at which it breaks even.
+
+*(This also invalidated the naive synthetic trace generator, which random-walks to 54%
+coverage by step 256. `synth_ws` in `e2_pipeline_sim.py` is calibrated to the measured
+fresh-block curve and reproduces 15.1% vs the measured 15.2%. Earlier long-horizon
+synthetic numbers were inflated.)*
+
+### So paging beats priority-ordering on every axis (128k, 256 tokens, 20 µs RTT)
+
+| 100GbE | TTFT | TPOT | GB moved |
+|---|---|---|---|
+| layer-wise bulk | 216 ms | 25.8 ms | 9.21 (100 %) |
+| sparse priority + bulk | 67 ms | 26.0 ms | 9.21 (100 %) |
+| **paged + prefetch** | **33 ms** | **25.0 ms** (ideal) | **1.42 (15 %)** |
+| paged, cold index cache | 113 ms | 25.0 ms | 2.44 (27 %) |
+
+Priority-ordering is *worse* than paging on TPOT precisely because the background stream
+competes with demand fetches for the channel. And capacity moves with it: a bulk transfer
+forces the whole 9.21 GB resident on the decode worker, a pager only the working set plus
+index — 17 vs 4 concurrent 128k requests on an 80 GB H100, and 104 vs 27 on 100GbE.
+
+### Two things that bound paging
+
+**1. Round-trip latency.** A pager stalls on a request whenever it wants a block it does
+not hold; misses batch within a layer, so the worst case is 1 RTT per layer per token —
+61× for DeepSeek-V3.2. TPOT (ideal = 25 ms):
+
+| RTT | 61×RTT | layer-wise bulk | paged + prefetch |
+|---|---|---|---|
+| 20 µs | 1.2 ms | 28.8 ms | **25.0 ms** |
+| 50 µs | 3.0 ms | 29.7 ms | **25.0 ms** |
+| 100 µs | 6.1 ms | **31.3 ms** | 36.1 ms |
+| 200 µs | 12.2 ms | **34.5 ms** | 69.3 ms |
+| 1 ms | 61 ms | **60.2 ms** | 334.8 ms |
+
+**Paging wins below ~100 µs RTT and loses above it.** In-datacenter RDMA (2–10 µs, or
+20–50 µs through a software stack) is comfortably inside. Cross-region is not — there,
+bulk transfer is correct and the original priority-ordering idea is the right one.
+
+**2. The index cache is on the critical path.** A DSA pager cannot select a block until it
+holds the lightning-indexer keys for *every* token — 128 B/token/layer in fp8, 11% of the
+KV, 1.02 GB at 128k. If that has to be cold-fetched, paging's TTFT goes 33 → 113 ms on
+100GbE and 104 → 444 ms on 25GbE, **losing to sparse-priority+bulk** (67 ms / 232 ms). The
+index cache must be pre-staged or kept resident; it is 11% of the KV, so this is cheap to
+do deliberately and fatal to ignore.
+
+### Revised design
+
+Keep the **index cache resident** (11%, mandatory, predictable — no prediction needed).
+**Page the MLA latents** on demand with last-prefill-token prefetch. Total ~26% of the KV
+moved for a 256-token generation, TTFT ~33 ms, TPOT at the ideal, 4× the concurrency.
+Fall back to sparse-priority bulk transfer when RTT to the KV store exceeds ~100 µs.
+
+**What survives of the original idea:** the sparsity insight, the prediction mechanism, and
+the priority ordering — all of which the pager reuses as its prefetcher. **What does not:**
+"of course we'll still send everything over." That is the assumption to drop.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
    the regime where it actually pays.
+1b. **Do not bulk-transfer the cold blocks at all** (§7) — page them. Keep the indexer-key
+   cache resident. Revert to priority-ordered bulk only if RTT to the store is >~100 µs.
 2. Requires a **shared-index (DSA-style) selector**. Per-head selection kills it.
 3. **Push + demand-pull**, not push alone. Rank blocks by the last prefill token's own
    attention and push 2–4× the budget (§6): that reaches 86–92% recall for a priority set
@@ -203,10 +283,17 @@ you miss.**
   measured, but on Apple silicon, not on an H100/H800 + CX-7.
 - Prefill throughput and decode step time are parameters, swept rather than measured.
 
-**The experiment that would settle it**: DeepSeek-V3.2-Exp on two nodes, measure TTFT for a
-prefix-cache hit with (a) layer-wise push, (b) layer-wise push + demand-pull, (c) DSA-index
-priority push + demand-pull. Prediction from this work: (a) ≫ (b) > (c), with (c) ≈ 3× better
-than (a) on 100GbE at 128k.
+- The 256-step working-set curves are the load-bearing measurement of §7 and they come from
+  16–32k contexts. Saturation at 128k is an extrapolation of the tail slope.
+- The RTT crossover (~100 µs) comes from a model in which misses batch per layer. A real
+  implementation that fails to batch them would break far earlier; one that prefetches
+  further ahead would push it later.
+
+**The experiment that would settle it**: DeepSeek-V3.2-Exp on two nodes, measure TTFT/TPOT
+for a prefix-cache hit with (a) layer-wise push, (b) layer-wise push + demand-pull,
+(c) DSA-index priority push + demand-pull, (d) pure paging with resident index cache.
+Prediction from this work: (a) ≫ (b) > (c) > (d) on TTFT, with (d) moving ~5× less data and
+holding TPOT at the compute floor, provided RTT stays under ~100 µs.
 
 ---
 
@@ -224,4 +311,9 @@ than (a) on 100GbE at 128k.
 .venv/bin/python exp/e7_predictors.py --budget 0.0156   # §6 predictor table
 .venv/bin/python exp/e8_overfetch.py        # §6 over-fetch sweep
 .venv/bin/python exp/e9_pred_plots.py       # results/predictors.png
+./exp/run_e1_long.sh                        # 256-step traces (~25 min)
+.venv/bin/python exp/e10_longgen.py         # §7 working-set saturation
+.venv/bin/python exp/e11_paging.py          # §7 paging, RTT attack, index cache
+.venv/bin/python exp/e12_capacity.py        # §7 bandwidth + HBM capacity
+.venv/bin/python exp/e13_plots2.py          # results/paging.png
 ```
