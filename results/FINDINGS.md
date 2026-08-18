@@ -116,13 +116,79 @@ also argues for larger selection blocks, which §2 shows are more stable anyway.
 
 ---
 
+## 6. Yes — the selection is predictable, and over-fetching is nearly free  (follow-up to D1)
+
+§3 showed a push-only schedule collapses at 76% prediction accuracy. That framing was too
+pessimistic in one respect: you do not have to predict *exactly* k blocks. Ranking blocks
+and sending the top **m·k** costs almost nothing at a DSA budget — 4× of 1.56% is still
+only 6% of the cache.
+
+Recall of the blocks the **first decode token** actually reads (4 traces, 16–32k ctx,
+DSA-proportional budget):
+
+| predictor | who has it | m=1 | m=2 | m=4 | m=8 |
+|---|---|---|---|---|---|
+| **last prefill token** | prefill worker, free | **0.733** | 0.859 | **0.924** | **0.977** |
+| mean of last 8 prefill tokens | prefill worker, free | 0.689 | 0.812 | 0.908 | 0.964 |
+| previous decode step | decode worker | 0.733 | 0.859 | 0.924 | 0.977 |
+| previous layer, same step | decode worker, JIT | 0.617 | 0.715 | 0.824 | 0.891 |
+| layer 0's selection, reused | decode worker | 0.447 | 0.579 | 0.629 | 0.658 |
+| sinks + sliding window | query-independent | 0.438 | 0.604 | 0.607 | 0.628 |
+| random | — | 0.036 | 0.004 | 0.068 | 0.126 |
+
+Findings:
+
+- **The last prefill token is the best predictor available, and it is free.** 73% exact,
+  92% at 4× over-fetch, 98% at 8×. Nothing beats it — averaging over the last 8 prefill
+  positions is slightly *worse* for the first token (the selection tracks the most recent
+  query, it is not a stable "popularity" property).
+- **In steady state the previous decode step is better still** (0.926 at m=4 averaged over
+  all steps vs 0.791 for last-prefill), so the predictor should switch to prev-step once
+  decoding is underway.
+- **Cross-layer reuse does not work.** Layers agree only moderately (mean pairwise Jaccard
+  0.47), and reusing layer 0's selection for every later layer gets 0.63 at m=4 — worse
+  than the free prefill-side predictor. The just-in-time variant (use layer ℓ−1's true
+  selection to prefetch layer ℓ, which is timing-feasible) reaches 0.82, still worse. Each
+  layer needs its own prediction.
+- **Sinks + sliding window saturate at ~0.60** and do not improve with over-fetch — it is a
+  fixed set, not a ranking. Confirms §3: not a substitute.
+
+### What the over-fetch is worth (128k, DeepSeek geometry, prefix-cache hit, 6 seeds)
+
+| over-fetch | priority set | recall | TTFT 25GbE | TTFT 100GbE | TTFT IB NDR |
+|---|---|---|---|---|---|
+| *layer-wise + pull* | — | — | 693 ms | 216 ms | 98 ms |
+| 1× | 1.56 % | 0.750 | 260 ms | **75 ms** | 45 ms |
+| 2× | 3.12 % | 0.868 | 196 ms | 77 ms | 35 ms |
+| 4× | 6.25 % | 0.938 | 159 ms | 86 ms | **31 ms** |
+| 6× | 9.38 % | 0.960 | **143 ms** | 82 ms | 67 ms |
+| 8× | 12.5 % | 0.979 | 144 ms | 82 ms | 67 ms |
+
+**The slower the link, the more you should over-fetch** — a miss costs a round trip plus a
+transfer, and on a slow link that dominates the cost of shipping extra blocks (25GbE:
+260 → 143 ms going from 1× to 6×). On fast links the priority wave itself starts competing
+with the demand pulls for the channel and the curve turns back up (IB NDR: best at 4×,
+then a cliff). Run-to-run spread is ≤2 ms, so this is a real scheduling effect, not noise —
+though where exactly the cliff falls is model-dependent and should not be read as precise.
+
+Over-fetch also consistently reduces **post-TTFT stall** (100GbE, 12 steps: 260 ms at 1× →
+223 ms at 8×), so it buys back part of the TPOT cost noted in §4.
+
+**Practical rule: rank by the last prefill token, send 2–4× the budget, switch to
+previous-decode-step ranking once decoding starts, keep a demand-pull path for the ~6–8%
+you miss.**
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
    the regime where it actually pays.
 2. Requires a **shared-index (DSA-style) selector**. Per-head selection kills it.
-3. **Push + demand-pull**, not push alone. Prefill-side prediction from the last prefill
-   token is a useful prefetch hint (76% hit) but must have a miss path.
+3. **Push + demand-pull**, not push alone. Rank blocks by the last prefill token's own
+   attention and push 2–4× the budget (§6): that reaches 86–92% recall for a priority set
+   of only 3–6% of the cache. Switch to previous-decode-step ranking once decoding starts
+   (0.93 recall at 4×). The remaining ~8% must have a pull path.
 4. Coalesce to ≥1 MB messages; prefer ≥64-token selection blocks.
 5. Watch TPOT — the deferred stream must be drained aggressively or later tokens stall.
 
@@ -154,4 +220,8 @@ than (a) on 100GbE at 128k.
 .venv/bin/python exp/e2_pipeline_sim.py --mode trace --trace results/e1/q05_qa_32k_b64
 .venv/bin/python exp/e5_regime.py           # §4 regime map + crossover
 .venv/bin/python exp/e6_plots.py            # results/findings.png
+.venv/bin/python exp/run_e1_tail.sh         # traces w/ 8 prefill tail positions
+.venv/bin/python exp/e7_predictors.py --budget 0.0156   # §6 predictor table
+.venv/bin/python exp/e8_overfetch.py        # §6 over-fetch sweep
+.venv/bin/python exp/e9_pred_plots.py       # results/predictors.png
 ```

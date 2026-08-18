@@ -113,7 +113,7 @@ def forced_sets(nb, S, block_size, n_sink_blocks, local_tokens):
 
 # ---------------------------------------------------------------- main
 def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
-        n_sink_blocks, local_tokens, out):
+        n_sink_blocks, local_tokens, out, tail=1):
     dev = "mps" if torch.backends.mps.is_available() else "cpu"
     tok = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
@@ -131,13 +131,16 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
 
     cap = AttnCapture(model)
     t0 = time.time()
-    # --- chunked prefill of all but the last token, with fast sdpa
+    # --- chunked prefill of all but the last `tail` tokens, with fast sdpa.
+    # The tail positions are then stepped one at a time so we can see what the
+    # LAST FEW PREFILL TOKENS attend to -- that is all the prefill worker has
+    # to predict the decode worker's selection with.
     from transformers import DynamicCache
     past = DynamicCache()
     CH = 1024
     with torch.no_grad():
-        for s in range(0, S0 - 1, CH):
-            chunk = ids[:, s:min(s + CH, S0 - 1)]
+        for s in range(0, S0 - tail, CH):
+            chunk = ids[:, s:min(s + CH, S0 - tail)]
             out_ = model(chunk, past_key_values=past, use_cache=True)
             past = out_.past_key_values
     print(f"prefill {time.time()-t0:.1f}s", flush=True)
@@ -153,9 +156,9 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
     sel_kv = []           # [steps][L] count of (kvhead, block) pairs needed
     raw_scores = []       # [steps][L] float16 [H, nb] -- lets any selection rule
                           # be evaluated offline (per-head vs shared-index etc.)
-    cur = ids[:, -1:]
+    cur = ids[:, S0 - tail:S0 - tail + 1]
     with torch.no_grad():
-        for t in range(steps + 1):     # t=0 is the LAST PREFILL TOKEN
+        for t in range(steps + tail):  # t < tail are PREFILL positions
             cap.clear()
             o = model(cur, past_key_values=past, use_cache=True)
             past = o.past_key_values
@@ -196,8 +199,11 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
             raw_scores.append(step_scores)
             sel_union.append(step_union)
             sel_kv.append(step_kv)
-            cur = o.logits[:, -1:].argmax(-1)
-            if t % 4 == 0: print(f"  step {t} S={S} nb={nb}", flush=True)
+            if t + 1 < tail:                   # still replaying prefill tail
+                cur = ids[:, S0 - tail + t + 1:S0 - tail + t + 2]
+            else:
+                cur = o.logits[:, -1:].argmax(-1)
+            if t % 8 == 0: print(f"  step {t} S={S} nb={nb}", flush=True)
     cap.close()
 
     nb_max = max(r["nb"] for r in records)
@@ -210,7 +216,7 @@ def run(model_id, kind, ctx, steps, block_size, budget_tokens, tau,
     meta = dict(model=model_id, kind=kind, ctx=S0, steps=steps, L=L, H=H, KVH=KVH,
                 block_size=block_size, budget_tokens=budget_tokens, tau=tau,
                 n_sink_blocks=n_sink_blocks, local_tokens=local_tokens,
-                records=records)
+                n_tail=tail, records=records)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     sc_arr = np.zeros((len(raw_scores), L, H, nb_max), dtype=np.float16)
     for i, st in enumerate(raw_scores):
@@ -232,7 +238,9 @@ if __name__ == "__main__":
     p.add_argument("--tau", type=float, default=0.95)
     p.add_argument("--sink-blocks", type=int, default=1)
     p.add_argument("--local", type=int, default=256)
+    p.add_argument("--tail", type=int, default=1,
+                   help="how many trailing PREFILL positions to trace")
     p.add_argument("--out", default="results/e1/run")
     a = p.parse_args()
     run(a.model, a.kind, a.ctx, a.steps, a.block, a.budget, a.tau,
-        a.sink_blocks, a.local, a.out)
+        a.sink_blocks, a.local, a.out, a.tail)

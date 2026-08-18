@@ -11,7 +11,7 @@ win. It requires a shared-index selector and a demand-pull path.**
 
 - [`PLAN.md`](PLAN.md) — the falsifiable structure: five ways the idea could die
 - [**`results/FINDINGS.md`**](results/FINDINGS.md) — results and verdict
-- `results/findings.png` — four decisive plots
+- `results/findings.png`, `results/predictors.png` — plots
 
 | experiment | question |
 |---|---|
@@ -20,4 +20,6 @@ win. It requires a shared-index selector and a demand-pull path.**
 | `exp/e2_pipeline_sim.py` | event-driven P→D transfer sim, 6 policies |
 | `exp/e3_granularity.py` | what does scattered block transfer cost? |
 | `exp/e5_regime.py` | *where* does the idea pay? |
+| `exp/e7_predictors.py` | can we predict which blocks are needed? |
+| `exp/e8_overfetch.py` | how much should we speculatively over-fetch? |
 | `exp/e6_plots.py` | figures |
