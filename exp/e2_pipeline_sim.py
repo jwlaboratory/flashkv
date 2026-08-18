@@ -53,7 +53,7 @@ def runs(mask, cap=MAX_UNIT_BLOCKS):
 
 def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
              link, rtt_us=0.0, index_frac=0.11, demand=True, background=True,
-             cold_unit=None, index_bytes=0.0):
+             cold_unit=None, index_bytes=0.0, prefetch=None, lookahead=0):
     """need[step][layer] bool[nb]; prio[layer] bool[nb] = what P sends first.
 
     demand=True   receiver may pull a missing block out of order, costing one
@@ -70,6 +70,12 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                   (~128 B/token/layer fp8, vs 1152 for the MLA latent), so this
                   is a hard floor on a pager's bandwidth AND its TTFT.  Zero if
                   the index cache is already resident on the decode worker.
+    prefetch      list, per decode step, of the block set we PREDICT that step
+                  will need.  Combined with `lookahead=h`, at step t the pager
+                  issues fetches for prefetch[t+h], giving the transfer h whole
+                  token-times to land instead of one layer-time.  This is the
+                  difference between reactive paging (round trip on the critical
+                  path) and pipelined paging (round trip hidden).
     cold_unit     transfer granularity for cold blocks, in blocks.  Bulk
                   streaming coalesces to ~1MB (efficient); a pager fetches the
                   single block it wants (no waste, but a small message).  This
@@ -144,9 +150,14 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
         return None
 
     n_pending = len(U)
+    pf_flag = np.zeros((L, nb), bool)     # cold blocks cleared for prefetch
     idx_done = np.zeros(L, bool)
     idx_t = np.zeros(L)
     for step in range(len(need)):
+        if prefetch is not None and lookahead > 0:
+            tgt = step + lookahead
+            if tgt < len(prefetch):
+                pf_flag |= prefetch[tgt][:, :nb]
         for l in range(L):
             if index_bytes > 0 and not idx_done[l]:
                 link_t = max(link_t, (l + 1) * t_pf_layer) + link.time(index_bytes)
@@ -157,12 +168,16 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                     if step > 0: stall_post += d
                     dec_t = link_t
             want = need[step][l][:nb]
+            first_miss = True
             while True:
                 missing = np.flatnonzero(want & ~arrived[l])
                 if not len(missing): break
-                if demand:                       # pull out of order, pay one RTT
+                if demand:
+                    # A real pager knows ALL of this layer's misses at once and
+                    # asks for them in ONE request: pay the round trip once per
+                    # layer, not once per missing block.
                     i = find_covering(l, int(missing[0]))
-                    rtt = rtt_us * 1e-6
+                    rtt = rtt_us * 1e-6 if first_miss else 0.0
                 else:                            # pure push: wait for the stream
                     release_upto(max(link_t, dec_t))
                     i = pop_ready()
@@ -170,6 +185,7 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                         link_t = max(link_t, future[0][0]); continue
                     rtt = 0.0
                 if i is None: break
+                first_miss = False
                 t_arr = run_unit(i, rtt); n_pending -= 1
                 if t_arr > dec_t:
                     d = t_arr - dec_t; stall += d
@@ -180,7 +196,9 @@ def simulate(policy, need, prio, L, nb, block_bytes, t_pf_layer, t_dec_layer,
                 release_upto(max(link_t, dec_t))
                 i = pop_ready()
                 if i is not None and not background and U[i]["prio"] >= L:
-                    continue                      # cold block: page it, don't push it
+                    u = U[i]
+                    if not pf_flag[u["layer"], u["start"]:u["start"]+u["count"]].any():
+                        continue                  # cold and unwanted: don't push it
                 if i is None:
                     if not future: break
                     link_t = max(link_t, future[0][0]); continue

@@ -3,7 +3,10 @@
 **Verdict: the idea is half right, the half that's wrong is the half it was pitched on,
 the surviving half is dominated by a stronger design (§7 — don't reorder the bulk transfer,
 mostly don't do it), and that stronger design is already published (§9 — HiSparse, SAC).
-§8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.**
+§8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.
+§10 tests a deeper predictive angle and finds no edge — batching a layer's misses into one
+round trip is worth 6.5x, the predictor ~0, and speculative prefetch is harmful when
+bandwidth is tight.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -336,6 +339,73 @@ system uses. That is a narrow contribution on top of an occupied field, not a ne
 
 ---
 
+## 10. Tested: is there an edge in predicting further ahead?  (no — and the reason generalises)
+
+§9 left one gap: HiSparse's LRU and SAC's reactive fetch both need history, so neither
+prefetches ahead. The hypothesis: reactive paging discovers a miss at the moment it needs
+the block, so the round trip lands on the critical path with only ~0.4 ms of layer compute
+to hide in. Predict *h steps ahead* and you get h whole token-times (~25 ms each) instead.
+If prediction survives the horizon, the ~100 µs latency wall should move enormously.
+
+**Prediction does survive the horizon.** Recall of step t+h's needed blocks, predicted at
+step t (4 traces, 256-step generations, 2× over-fetch):
+
+| horizon | slack it buys | recall (last step) | recall (union of last 4) |
+|---|---|---|---|
+| h=1 | 25 ms | 0.930 | 0.927 |
+| h=2 | 50 ms | 0.904 | 0.908 |
+| h=4 | 100 ms | 0.878 | 0.887 |
+| h=8 | 200 ms | 0.854 | 0.864 |
+| h=16 | 400 ms | 0.819 | 0.829 |
+
+Decay is remarkably slow — you can see 400 ms into the future at 82% recall.
+
+**And it buys almost nothing.** TPOT, 128k, 100GbE, prefix-cache hit (ideal = 25.0 ms):
+
+| RTT | bulk | paged h=0 (reactive) | h=1 | h=4 | h=16 |
+|---|---|---|---|---|---|
+| 20 µs | 30.8 | **25.0** | 25.2 | 25.3 | 25.4 |
+| 100 µs | 32.2 | **25.0** | 25.4 | 25.6 | 25.8 |
+| 500 µs | 39.0 | 32.6 | 32.9 | 32.2 | **32.0** |
+| 1000 µs | **47.5** | 63.1 | 62.4 | 60.7 | 60.3 |
+
+**Why the hypothesis was wrong.** The round-trip cost is not set by *when* you fetch, it is
+set by how many layers have **at least one** miss. At 93% recall with 32 blocks per layer,
+P(some miss in a layer) = 1 − 0.93³² ≈ 90%. Nearly every layer stalls regardless of how
+early you started. To hide the round trip by prediction you would need per-block recall
+above ~0.9997, which is not reachable — and even the "everything seen so far" set, at 0.966
+recall and 11.8% of the cache resident, leaves 67% of layers missing something.
+
+**What actually moves the wall is batching, not prediction.** A real pager knows all of a
+layer's misses at once and asks for them in one request. Charging one round trip per layer
+instead of per missing block moved the crossover from ~100 µs to **~650 µs** (paged wins at
+600 µs, bulk wins at 700 µs) — a 6.5× extension from an implementation detail, versus ~0
+from the predictor.
+
+**Worse: speculative prefetch is actively harmful when bandwidth is tight.** TPOT, h=0 → h=4:
+
+| link | RTT 20 µs | RTT 200 µs | RTT 1000 µs |
+|---|---|---|---|
+| 25GbE | 25.9 → **32.6** | 26.5 → **42.5** | 70.4 → **86.5** |
+| 100GbE | 25.0 → 25.3 | 25.0 → 26.1 | 63.1 → 60.7 |
+| IB NDR | 25.0 → 25.0 | 25.0 → 25.0 | 61.7 → 60.4 |
+
+On a constrained link the speculative traffic steals bandwidth from the demand fetches that
+actually matter — up to 60% worse TPOT.
+
+**The recurring lesson, now seen three times.** Speculative traffic competes with needed
+traffic: the bulk background stream hurt TPOT in §7; over-fetching past the sweet spot hurt
+TTFT on fast links in §6; lookahead prefetch hurts on slow links here. **Prediction is only
+worth what it saves minus what its wrong guesses cost in bandwidth**, and on the paging path
+that difference is near zero or negative.
+
+**What survives.** Exactly one predictive edge, the cold-start one from §6: the very first
+decode token after a cache hit, where there is no history for LRU or a reactive pager to use
+(33 ms vs 57 ms TTFT). That stays the gap in HiSparse and SAC. Deeper or further-ahead
+prediction is not an edge.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
@@ -395,4 +465,6 @@ holding TPOT at the compute floor, provided RTT stays under ~100 µs.
 .venv/bin/python exp/e12_capacity.py        # §7 bandwidth + HBM capacity
 .venv/bin/python exp/e13_plots2.py          # results/paging.png
 .venv/bin/python exp/e14_realistic.py       # §8 corrected hardware numbers
+.venv/bin/python exp/e15_horizon.py         # §10 prediction vs lookahead horizon
+.venv/bin/python exp/e16_lookahead.py       # §10 does lookahead move the latency wall?
 ```
