@@ -1,8 +1,9 @@
 # Sparse-aware KV transfer for disaggregated prefill→decode — findings
 
-**Verdict: the idea is half right, and the half that's wrong is the half it was pitched on.
-A second, adversarial round (§7) found that the surviving half is itself dominated by a
-stronger design — don't reorder the bulk transfer, mostly don't do it.**
+**Verdict: the idea is half right, the half that's wrong is the half it was pitched on,
+the surviving half is dominated by a stronger design (§7 — don't reorder the bulk transfer,
+mostly don't do it), and that stronger design is already published (§9 — HiSparse, SAC).
+§8 corrects a 25x error in the prefill-throughput assumption; the conclusion survives it.**
 
 The analogy to layer-wise pipelining does *not* carry over: in the fresh-prefill case
 layer-wise already hides ~100% of the transfer, and sparse ordering saves **<0.1% of
@@ -258,6 +259,83 @@ the priority ordering — all of which the pager reuses as its prefetcher. **Wha
 
 ---
 
+## 8. CORRECTION: the prefill-throughput number was wrong by ~25x
+
+§4 assumed a prefill instance sustains 5,000 tok/s, giving 26 s to prefill 128k. **That is
+roughly the per-GPU figure, not the per-instance figure.** DeepSeek's published V3 inference
+system uses a 4-node / 32-GPU prefill unit.
+
+Regrounding: 73.7k tok/s per H800 node at a 56.3% prefix-cache-hit rate implies ~32.2k
+*computed* tok/s per node, ~4.0k tok/s per GPU. At 74 GFLOP/token (2 x 37B active) that is
+~298 TFLOPS/GPU, ~30% MFU on fp8 H800 — self-consistent. So a 32-GPU prefill instance does
+128k tokens in **~1.0 s, not 26 s**, and there is 25x less compute to hide the transfer
+behind than §4 assumed.
+
+Whether the transfer still hides (128k = 9.21 GB of MLA KV):
+
+| prefill GPUs | tok/s | 128k prefill | KV egress | full xfer @25GbE / 100GbE / IB400 |
+|---|---|---|---|---|
+| 8 | 32k | 4.10 s | 2.2 GB/s | 2.97 / 0.74 / 0.18 s — hidden everywhere |
+| 32 (DeepSeek's unit) | 128k | **1.02 s** | 9.0 GB/s | 2.97 / 0.74 / 0.18 s — 25GbE transfer-bound |
+| 64 | 256k | 0.51 s | 18.0 GB/s | 25GbE **and** 100GbE transfer-bound |
+
+So the headroom is real but far from the 9–36x §4 claimed. **Does the conclusion survive?**
+Fresh prefill, 32-GPU instance, absolute TTFT (prefill compute floor = 1024 ms):
+
+| link | layer-wise **push** | layer-wise **+pull** | sparse **+pull** | saved vs push | vs pull |
+|---|---|---|---|---|---|
+| 25GbE | 3145 ms | 1036 ms | 1028 ms | 67.3 % | **0.7 %** |
+| 100GbE | 1037 ms | 1028 ms | 1026 ms | 1.1 % | **0.2 %** |
+| IB NDR 400Gb | 1028 ms | 1026 ms | 1025 ms | 0.3 % | **0.0 %** |
+| NVLink | 1025 ms | 1025 ms | 1025 ms | 0.0 % | 0.0 % |
+
+**The §4 conclusion survives the correction, but the reason shifts.** At 25GbE the transfer
+genuinely is on the critical path now (3145 ms vs a 1024 ms floor) — but the fix that
+recovers it is **demand-pull** (3145 → 1036 ms, 67%), not sparse ordering, which adds a
+further 0.7%. Above 100GbE everything is within ~1% of the prefill floor. Sparse priority
+ordering is still worth ≤1% of TTFT for fresh prefill at every realistic operating point;
+only an unrealistic corner (128-GPU prefill instance on 25GbE) reaches 63%.
+
+## 9. Prior work: most of this exists, and the numbers agree
+
+The paging design §7 converged on is published, and recently.
+
+- **HiSparse** ([arXiv 2608.07009](https://arxiv.org/html/2608.07009)) is the closest. Two-tier
+  KV hierarchy: full history in pinned host DRAM, a fixed-size per-request GPU cache with
+  LRU, a fused kernel doing hit-detect / replace / batched H2D fetch inside the decode CUDA
+  graph, plus layer-wise prefetch for models that share selections across layers. Evaluated
+  on DSA (GLM-5.1/5.2, k=2048), NSA (DeepSeek-V4-Flash) and Quest, on H200/B200/GH200. Up
+  to 4.7x throughput at 200k context.
+  **Their headline locality number is ours.** They report an 87% hit rate with a GPU cache
+  of 2k slots — twice the selection size. Our E7 over-fetch curve gives 0.868 recall at
+  m=2. Independently measured, different models, same number. Their finding that LRU
+  tracks Bélády is our "previous decode step is the best steady-state predictor" (0.93 at
+  m=4).
+- **SAC** ([arXiv 2606.19746](https://arxiv.org/html/2606.19746v1)) puts exactly §7's design in the
+  disaggregated setting: full KV in a CXL pool, reactive sub-block fetching driven by
+  layer-wise top-k, on DeepSeek-V3.2 across 8x H20 with a 2TB CXL pool. 9.7x lower TTFT and
+  2.1x throughput vs an RDMA baseline, within 9% of local DRAM.
+  **Their RTT result is our §7 bound.** They measure CXL at 1.04–1.64x local-DRAM latency
+  versus RDMA at 4.0–19.7x, and conclude load/store semantics are what make sparse paging
+  viable. That is the same effect as our ~100 µs RTT crossover, measured on real hardware.
+- **InfiniGen** (OSDI'24) is the ancestor of the prefill-side predictor: speculative
+  prefetch of important KV entries from CPU using SVD projections. **ShadowKV** keeps
+  low-rank keys on GPU and fetches values on demand. **ArkVale** evicts cold pages and
+  recalls them by page summary.
+- On the P→D transfer path specifically: **SpectrumKV** (per-token mixed-precision KV
+  transfer, importance-scored at the prefill worker before the wire), **PDTrim** (~5x less
+  cross-node transfer via token/layer-selective pruning), **Semantic Cache Distillation**
+  (low-rank reconstruction, 2.65x TTFT).
+
+**What is left.** HiSparse's LRU and SAC's reactive fetch both need history, so neither
+helps the *first* decode token after a cache hit — SAC is explicitly "purely demand-driven,"
+which means the first token pays a serial fetch per layer. Our §6 result — the last prefill
+token's own attention predicts the first decode token's selection at 0.73 exact / 0.92 at
+4x over-fetch, and 4x is only 6% of the cache — is a cold-start prefetch hint that neither
+system uses. That is a narrow contribution on top of an occupied field, not a new direction.
+
+---
+
 ## What to build, if you pursue it
 
 1. Target the **prefix-cache-hit / KV-tier-load** path, not fresh prefill. Same mechanism,
@@ -316,4 +394,5 @@ holding TPOT at the compute floor, provided RTT stays under ~100 µs.
 .venv/bin/python exp/e11_paging.py          # §7 paging, RTT attack, index cache
 .venv/bin/python exp/e12_capacity.py        # §7 bandwidth + HBM capacity
 .venv/bin/python exp/e13_plots2.py          # results/paging.png
+.venv/bin/python exp/e14_realistic.py       # §8 corrected hardware numbers
 ```

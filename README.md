@@ -10,7 +10,11 @@ of TTFT to win. Yes for prefix-cache hits / KV reloads (3–12× TTFT). But an a
 round then found the surviving version is itself dominated: 256-token generations touch
 only ~15% of the KV, so the right design is to *not send the cold blocks at all* and page
 them on demand — 33 ms TTFT, ideal TPOT, 15% of the bytes, 4× the concurrency. That holds
-below ~100 µs RTT and requires the DSA indexer-key cache to be resident.**
+below ~100 µs RTT and requires the DSA indexer-key cache to be resident.
+
+That design is already published — see §9: HiSparse (two-tier sparse KV hierarchy) and SAC
+(the same over a CXL pool, on DeepSeek-V3.2) report the same locality and latency numbers
+we measured independently.**
 
 - [`PLAN.md`](PLAN.md) — the falsifiable structure: five ways the idea could die
 - [**`results/FINDINGS.md`**](results/FINDINGS.md) — results and verdict
@@ -28,4 +32,5 @@ below ~100 µs RTT and requires the DSA indexer-key cache to be resident.**
 | `exp/e10_longgen.py` | does the working set saturate over a long generation? |
 | `exp/e11_paging.py` | bulk vs paging; the RTT attack; the index-cache floor |
 | `exp/e12_capacity.py` | bandwidth + HBM capacity at fleet scale |
+| `exp/e14_realistic.py` | corrected prefill throughput (§8) |
 | `exp/e6_plots.py` | figures |
